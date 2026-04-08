@@ -1,0 +1,49 @@
+import { NextResponse } from "next/server";
+
+import { categoryLabel } from "@/lib/category-labels";
+import { detectGarmentCategory } from "@/lib/detect-garment";
+
+export const runtime = "nodejs";
+
+const MAX_BYTES = 12 * 1024 * 1024;
+
+const allowedMime = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+export async function POST(request: Request) {
+  try {
+    const form = await request.formData();
+    const file = form.get("garment");
+
+    if (!(file instanceof File)) {
+      return NextResponse.json({ error: "Expected garment file field." }, { status: 400 });
+    }
+
+    if (!allowedMime.has(file.type)) {
+      return NextResponse.json(
+        { error: "Unsupported image type. Use JPEG, PNG, or WebP." },
+        { status: 400 },
+      );
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    if (buffer.byteLength > MAX_BYTES) {
+      return NextResponse.json({ error: "Image too large (max 12MB)." }, { status: 400 });
+    }
+
+    const { category, source } = await detectGarmentCategory({
+      garmentBytes: buffer,
+      mimeType: file.type,
+    });
+
+    return NextResponse.json({
+      category,
+      label: categoryLabel(category),
+      source,
+    });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Detection failed";
+
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
