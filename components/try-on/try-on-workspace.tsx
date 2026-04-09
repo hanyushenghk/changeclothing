@@ -12,7 +12,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
 import { ImageDropZone } from "@/components/try-on/image-drop-zone";
 
 export function TryOnWorkspace() {
@@ -38,14 +37,12 @@ export function TryOnWorkspace() {
 
   return (
     <div className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6">
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-          Virtual try-on preview
-        </h1>
-        <p className="max-w-2xl text-muted-foreground">
-          Upload one photo of yourself and one clothing image. We auto-detect the garment type and
-          generate a static preview for purchase consideration—not a fit or size guarantee.
+      <div className="space-y-3 text-center">
+        <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">Try On Any Outfit</h1>
+        <p className="mx-auto max-w-2xl text-muted-foreground">
+          Upload your photo and a clothing item to see how it looks on you.
         </p>
+        <p className="text-lg">2 free tries remaining</p>
       </div>
 
       <Alert>
@@ -69,26 +66,46 @@ export function TryOnWorkspace() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Sparkles className="size-4" aria-hidden />
-              Inputs
+              Upload inputs
             </CardTitle>
-            <CardDescription>Your photo stays in this session until you refresh or reset.</CardDescription>
+            <CardDescription>
+              Left upload customer photo, right upload clothing photo.
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-6">
-            <ImageDropZone
-              label="Your photo"
-              description="Everyday photos work. Clearer shots usually preview better."
-              previewUrl={personPreviewUrl}
-              disabled={busy}
-              onFile={setPersonFile}
-            />
-            <Separator />
-            <ImageDropZone
-              label="Clothing image"
-              description="Any product or flat lay image. Category is detected automatically."
-              previewUrl={garmentPreviewUrl}
-              disabled={busy}
-              onFile={setGarmentFile}
-            />
+            <div className="grid gap-4 md:grid-cols-2">
+              <Card className="border-dashed">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Your Photo</CardTitle>
+                  <CardDescription>Upload customer full-body photo.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ImageDropZone
+                    label="Person Photo"
+                    description="Best results with standing pose and clear lighting."
+                    previewUrl={personPreviewUrl}
+                    disabled={busy}
+                    onFile={setPersonFile}
+                  />
+                </CardContent>
+              </Card>
+
+              <Card className="border-dashed">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base">Clothing Item</CardTitle>
+                  <CardDescription>Upload the garment to try on.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ImageDropZone
+                    label="Garment Photo"
+                    description="Supports tops, bottoms, and dresses."
+                    previewUrl={garmentPreviewUrl}
+                    disabled={busy}
+                    onFile={setGarmentFile}
+                  />
+                </CardContent>
+              </Card>
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">Detected category</span>
               {categoryDisplay ? (
@@ -142,7 +159,7 @@ export function TryOnWorkspace() {
             <CardTitle className="text-lg">Preview</CardTitle>
             <CardDescription>
               Configure{" "}
-              <code className="rounded bg-muted px-1 py-0.5 text-xs">REPLICATE_API_TOKEN</code> for
+              <code className="rounded bg-muted px-1 py-0.5 text-xs">ARK_API_KEY</code> for
               full generation. Without it, the API echoes your photo as a{" "}
               <strong>placeholder</strong> while you wire the UI.
             </CardDescription>

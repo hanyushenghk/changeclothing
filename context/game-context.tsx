@@ -224,7 +224,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const json = (await res.json()) as {
         imageBase64?: string;
         mimeType?: string;
-        mode?: "replicate" | "placeholder";
+        mode?: "doubao" | "placeholder";
         error?: string;
       };
 
@@ -236,7 +236,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Malformed try-on response.");
       }
 
-      const mode: TryOnMode = json.mode === "replicate" ? "live" : "placeholder";
+      const mode: TryOnMode = json.mode === "doubao" ? "live" : "placeholder";
       const dataUrl = `data:${json.mimeType};base64,${json.imageBase64}`;
 
       setResult({ dataUrl, mode });
