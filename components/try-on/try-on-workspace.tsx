@@ -160,7 +160,7 @@ export function TryOnWorkspace() {
             <CardDescription>
               Configure{" "}
               <code className="rounded bg-muted px-1 py-0.5 text-xs">ARK_API_KEY</code> for
-              full generation. Without it, the API echoes your photo as a{" "}
+              full generation (Volcengine Ark / Seedream). Without it, the API echoes your photo as a{" "}
               <strong>placeholder</strong> while you wire the UI.
             </CardDescription>
           </CardHeader>
