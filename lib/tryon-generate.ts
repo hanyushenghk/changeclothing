@@ -57,14 +57,13 @@ async function generateWithDoubao(
   const model = process.env.DOUBAO_MODEL ?? DEFAULT_DOUBAO_MODEL;
   const personDataUrl = `data:${input.personMime};base64,${input.personBytes.toString("base64")}`;
   const garmentDataUrl = `data:${input.garmentMime};base64,${input.garmentBytes.toString("base64")}`;
-  // 方舟多图生成往往以「数组中靠后的图」为构图/人物基底。界面：左=user person photo，右=clothing item。
-  // 请求顺序设为 [服装, 人物]，使人物处在第二位，更符合「以人物图为底、只换装」的效果。
-  // 下述「图1/图2」均指本请求里的顺序，对应界面「服装图 / 人物图」。
-  const prompt = `图1：clothing item 服装参考图（可能含模特）。图2：用户的 person photo 人物照片。
-必须以图2为唯一编辑基底：完整保留图2中人物的脸部、发型、姿势、体型、构图、光线与背景，只做换装。
-把图1里的${categoryToGarmentDescription[input.category]}穿到图2人物身上：只从图1提取款式、颜色、面料纹理与结构细节，不要采用图1中人物的体态或场景。
-服装细节必须与图1中那件衣服严格一致（袖长长袖/短袖/七分、衣长、下摆、领口、袖口与下摆收口、帽子/拉链/纽扣等）；禁止把长袖改成短袖、禁止缩短袖子或衣长、禁止简化版型。
-禁止输出看起来像「以图1为主角或主场景」；结果必须是图2里那个人在同一场景，仅衣着换成图1那套衣服。`;
+  // 界面：左=第一张=person photo，右=第二张=clothing item。请求顺序与界面一致：[人物, 服装]。
+  // 若此前 [服装,人物] 导致成片像「第二张服装图」，多为模型更重视数组首图；人物放首位以锁定构图与身份。
+  const prompt = `图1：用户的 person photo（界面「第一张」上传的人物照片）。图2：clothing item 服装参考图（界面「第二张」，可能是平铺或模特图）。
+任务：以图1为唯一成片基底——镜头、背景、人物脸型、发型、体态、姿势、光线必须与图1一致，仅替换衣着。
+从图2中只识别并提取${categoryToGarmentDescription[input.category]}的款式、颜色、面料与结构（袖长、衣长、领口、下摆等），把这套衣服穿到图1人物身上。服装细节必须与图2中那件衣服一致。
+严禁：把图2当作成片输出、让成片看起来像在复刻图2的构图/场景/模特身体；禁止用图2的背景或人物取代图1；禁止输出与图2几乎相同的画面。
+若图2含模特，只拷贝衣服，不拷贝模特的脸、身材或站姿。`;
   const start = await fetch("https://ark.cn-beijing.volces.com/api/v3/images/generations", {
     method: "POST",
     headers: {
@@ -74,7 +73,7 @@ async function generateWithDoubao(
     body: JSON.stringify({
       model,
       prompt,
-      image: [garmentDataUrl, personDataUrl],
+      image: [personDataUrl, garmentDataUrl],
       sequential_image_generation: "disabled",
       response_format: "url",
       size: "2K",
