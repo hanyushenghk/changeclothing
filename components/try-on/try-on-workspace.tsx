@@ -7,9 +7,13 @@ import Image from "next/image";
 import { AlertTriangle, Loader2, Sparkles, Wand2 } from "lucide-react";
 
 import { useGame } from "@/context/game-context";
+import { Container } from "@/components/theme/container";
+import { DisplayHeading, SectionLabel } from "@/components/theme/heading";
+import { Lead } from "@/components/theme/paragraph";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageDropZone } from "@/components/try-on/image-drop-zone";
@@ -36,16 +40,18 @@ export function TryOnWorkspace() {
   const canGenerate = Boolean(personFile && garmentFile && phase === "ready");
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 space-y-8 px-4 py-8 sm:px-6">
-      <div className="space-y-3 text-center">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-5xl">Try On Any Outfit</h1>
-        <p className="mx-auto max-w-2xl text-muted-foreground">
+    <Container>
+      <div className="sidefolio-section">
+      <div className="space-y-3">
+        <SectionLabel>Try On</SectionLabel>
+        <DisplayHeading>Try On Any Outfit</DisplayHeading>
+        <Lead>
           Upload your photo and a clothing item to see how it looks on you.
-        </p>
-        <p className="text-lg">2 free tries remaining</p>
+        </Lead>
+        <p className="text-lg text-neutral-700">2 free tries remaining</p>
       </div>
 
-      <Alert>
+      <Alert className="sidefolio-card rounded-xl border-neutral-200">
         <AlertTriangle className="size-4" />
         <AlertTitle>Reference only</AlertTitle>
         <AlertDescription>
@@ -55,14 +61,14 @@ export function TryOnWorkspace() {
       </Alert>
 
       {error ? (
-        <Alert variant="destructive">
+        <Alert variant="destructive" className="rounded-xl border-destructive/30 bg-destructive/5">
           <AlertTitle>Something went wrong</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : null}
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
+        <Card className="sidefolio-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
               <Sparkles className="size-4" aria-hidden />
@@ -74,7 +80,18 @@ export function TryOnWorkspace() {
           </CardHeader>
           <CardContent className="space-y-6">
             <div className="grid gap-4 md:grid-cols-2">
-              <Card className="border-dashed">
+              <Card className="sidefolio-card relative overflow-hidden border-dashed">
+                <GlowingEffect
+                  disabled={false}
+                  proximity={0}
+                  inactiveZone={0}
+                  spread={60}
+                  movementDuration={0.45}
+                  blur={4}
+                  borderWidth={4}
+                  glow
+                  className="z-10 rounded-[inherit]"
+                />
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Your Photo</CardTitle>
                   <CardDescription>Upload customer full-body photo.</CardDescription>
@@ -90,7 +107,18 @@ export function TryOnWorkspace() {
                 </CardContent>
               </Card>
 
-              <Card className="border-dashed">
+              <Card className="sidefolio-card relative overflow-hidden border-dashed">
+                <GlowingEffect
+                  disabled={false}
+                  proximity={0}
+                  inactiveZone={0}
+                  spread={60}
+                  movementDuration={0.45}
+                  blur={4}
+                  borderWidth={4}
+                  glow
+                  className="z-10 rounded-[inherit]"
+                />
                 <CardHeader className="pb-3">
                   <CardTitle className="text-base">Clothing Item</CardTitle>
                   <CardDescription>Upload the garment to try on.</CardDescription>
@@ -109,9 +137,13 @@ export function TryOnWorkspace() {
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm text-muted-foreground">Detected category</span>
               {categoryDisplay ? (
-                <Badge variant="secondary">{categoryDisplay}</Badge>
+                <Badge variant="secondary" className="rounded-md bg-neutral-100 text-neutral-700">
+                  {categoryDisplay}
+                </Badge>
               ) : (
-                <Badge variant="outline">Waiting for clothing image</Badge>
+                <Badge variant="outline" className="rounded-md border-neutral-300 text-neutral-600">
+                  Waiting for clothing image
+                </Badge>
               )}
               {detectionSource ? (
                 <span className="text-xs text-muted-foreground">
@@ -122,7 +154,7 @@ export function TryOnWorkspace() {
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                className="gap-2"
+                className="gap-2 rounded-xl shadow-sm"
                 disabled={!canGenerate || busy}
                 onClick={() => void generate()}
               >
@@ -138,10 +170,16 @@ export function TryOnWorkspace() {
                   </>
                 )}
               </Button>
-              <Button type="button" variant="outline" disabled={busy} onClick={() => clearResult()}>
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl border-neutral-300"
+                disabled={busy}
+                onClick={() => clearResult()}
+              >
                 Clear result
               </Button>
-              <Button type="button" variant="ghost" onClick={() => resetSession()}>
+              <Button type="button" variant="ghost" className="rounded-xl" onClick={() => resetSession()}>
                 Reset session
               </Button>
             </div>
@@ -154,7 +192,7 @@ export function TryOnWorkspace() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="sidefolio-card">
           <CardHeader>
             <CardTitle className="text-lg">Preview</CardTitle>
             <CardDescription>
@@ -168,7 +206,7 @@ export function TryOnWorkspace() {
             {result?.dataUrl ? (
               <>
                 {result.mode === "placeholder" ? (
-                  <Alert>
+                  <Alert className="rounded-xl border-neutral-200 bg-neutral-50">
                     <AlertTitle>Placeholder mode</AlertTitle>
                     <AlertDescription>
                       Connect a try-on backend (see <code>.env.example</code>) to produce a real
@@ -189,7 +227,7 @@ export function TryOnWorkspace() {
                 <a
                   href={result.dataUrl}
                   download="changeclothing-tryon.png"
-                  className={cn(buttonVariants({ variant: "secondary" }))}
+                  className={cn(buttonVariants({ variant: "secondary" }), "rounded-xl")}
                 >
                   Download PNG
                 </a>
@@ -206,6 +244,7 @@ export function TryOnWorkspace() {
           </CardContent>
         </Card>
       </div>
-    </div>
+      </div>
+    </Container>
   );
 }

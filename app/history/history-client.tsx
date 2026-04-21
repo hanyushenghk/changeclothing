@@ -6,6 +6,9 @@ import { useState } from "react";
 
 import { Trash2 } from "lucide-react";
 
+import { Container } from "@/components/theme/container";
+import { DisplayHeading, SectionLabel } from "@/components/theme/heading";
+import { Lead } from "@/components/theme/paragraph";
 import { Button, buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,15 +23,17 @@ export function HistoryClient() {
   const [rows, setRows] = useState<HistoryEntry[]>(() => loadHistory());
 
   return (
-    <div className="mx-auto w-full max-w-6xl flex-1 space-y-6 px-4 py-8 sm:px-6">
+    <Container>
+      <div className="sidefolio-section">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">History</h1>
-        <p className="text-muted-foreground">
+        <SectionLabel>History</SectionLabel>
+        <DisplayHeading className="text-2xl sm:text-3xl">Saved previews</DisplayHeading>
+        <Lead>
           Stored locally in this browser for now. Sign-in sync is planned for a later release.
-        </p>
+        </Lead>
       </div>
       {rows.length === 0 ? (
-        <Card>
+        <Card className="sidefolio-card">
           <CardHeader>
             <CardTitle>No previews yet</CardTitle>
           </CardHeader>
@@ -36,7 +41,7 @@ export function HistoryClient() {
             <p className="text-sm text-muted-foreground">
               Generate a try-on preview first, then it will show up here.
             </p>
-            <Link href="/try" className={cn(buttonVariants())}>
+            <Link href="/try" className={cn(buttonVariants(), "rounded-xl shadow-sm")}>
               Start try-on
             </Link>
           </CardContent>
@@ -44,7 +49,7 @@ export function HistoryClient() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {rows.map((row) => (
-            <Card key={row.id} className="overflow-hidden">
+            <Card key={row.id} className="sidefolio-card overflow-hidden">
               <div className="relative aspect-[3/4] bg-muted">
                 <Image
                   src={row.resultDataUrl}
@@ -65,7 +70,10 @@ export function HistoryClient() {
                   <a
                     href={row.resultDataUrl}
                     download={`tryon-${row.id}.png`}
-                    className={cn(buttonVariants({ variant: "secondary", size: "sm" }), "flex-1 text-center")}
+                    className={cn(
+                      buttonVariants({ variant: "secondary", size: "sm" }),
+                      "flex-1 rounded-xl text-center",
+                    )}
                   >
                     Download
                   </a>
@@ -73,7 +81,7 @@ export function HistoryClient() {
                     type="button"
                     variant="outline"
                     size="sm"
-                    className="gap-1"
+                    className="gap-1 rounded-xl border-neutral-300"
                     onClick={() => {
                       setRows(deleteHistoryEntry(row.id));
                     }}
@@ -87,6 +95,7 @@ export function HistoryClient() {
           ))}
         </div>
       )}
-    </div>
+      </div>
+    </Container>
   );
 }

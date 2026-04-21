@@ -40,25 +40,32 @@ Definitions:
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
 
-  if (!res.ok) {
-    const text = await res.text();
+    if (!res.ok) {
+      const text = await res.text();
 
-    throw new Error(`Gemini garment detect failed: ${res.status} ${text}`);
+      throw new Error(`Gemini garment detect failed: ${res.status} ${text}`);
+    }
+
+    const json = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+
+    const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ?? "";
+
+    return normalizeCategoryLabel(text);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown Gemini error";
+
+    console.warn("Gemini detect unavailable, falling back to deterministic:", message);
+    return null;
   }
-
-  const json = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-
-  const text = json.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") ?? "";
-
-  return normalizeCategoryLabel(text);
 }
 
 export type DetectGarmentInput = {

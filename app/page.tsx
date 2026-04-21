@@ -2,47 +2,58 @@ import Link from "next/link";
 
 import { ArrowRight, Camera, Shirt, Sparkles } from "lucide-react";
 
-import { SiteHeader } from "@/components/site-header";
+import { HomeAuth } from "@/components/home-auth";
+import { Container } from "@/components/theme/container";
+import { DisplayHeading, SectionLabel } from "@/components/theme/heading";
+import { Lead } from "@/components/theme/paragraph";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen flex-col">
-      <SiteHeader />
-      <main className="mx-auto flex w-full max-w-6xl flex-1 flex-col gap-16 px-4 py-16 sm:px-6">
+    <Container>
+      <div className="sidefolio-section flex flex-col">
+      <div className="space-y-4">
+        <span className="text-3xl">👋</span>
+        <SectionLabel>Overview</SectionLabel>
+      </div>
+      <main>
         <section className="grid gap-10 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div className="space-y-6">
-            <p className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1 text-xs font-medium text-muted-foreground">
+            <p className="inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1 text-xs font-medium text-neutral-500">
               Purchase-reference previews · Not sizing advice
             </p>
-            <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
+            <DisplayHeading className="text-4xl sm:text-5xl">
               See clothes on{" "}
               <span className="underline decoration-primary decoration-2 underline-offset-8">
                 you
               </span>
               , before you buy.
-            </h1>
-            <p className="max-w-xl text-lg text-muted-foreground">
+            </DisplayHeading>
+            <Lead className="max-w-xl text-lg leading-relaxed">
               ChangeClothing is a low-friction virtual try-on web tool for overseas shoppers. Upload
               your photo and a clothing image— we detect the garment type and render a still preview
               designed for shopping context, not tailoring precision.
-            </p>
+            </Lead>
             <div className="flex flex-wrap gap-3">
               <Link
                 href="/try"
-                className={cn(buttonVariants({ size: "lg" }), "gap-2")}
+                className={cn(buttonVariants({ size: "lg" }), "gap-2 rounded-xl shadow-sm")}
               >
                 Start free try-on
                 <ArrowRight className="size-4" aria-hidden />
               </Link>
-              <Link href="/history" className={cn(buttonVariants({ size: "lg", variant: "outline" }))}>
+              <Link
+                href="/history"
+                className={cn(buttonVariants({ size: "lg", variant: "outline" }), "rounded-xl border-neutral-300")}
+              >
                 View history
               </Link>
             </div>
+            <HomeAuth />
           </div>
-          <Card className="border-dashed">
+          <Card className="sidefolio-card border-dashed bg-neutral-50/40">
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-xl">
                 <Shirt className="size-5" aria-hidden />
@@ -72,6 +83,7 @@ export default function Home() {
           </Card>
         </section>
       </main>
-    </div>
+      </div>
+    </Container>
   );
 }

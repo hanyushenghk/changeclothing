@@ -64,50 +64,57 @@ async function generateWithDoubao(
 从图2中只识别并提取${categoryToGarmentDescription[input.category]}的款式、颜色、面料与结构（袖长、衣长、领口、下摆等），把这套衣服穿到图1人物身上。服装细节必须与图2中那件衣服一致。
 严禁：把图2当作成片输出、让成片看起来像在复刻图2的构图/场景/模特身体；禁止用图2的背景或人物取代图1；禁止输出与图2几乎相同的画面。
 若图2含模特，只拷贝衣服，不拷贝模特的脸、身材或站姿。`;
-  const start = await fetch("https://ark.cn-beijing.volces.com/api/v3/images/generations", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${token}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      prompt,
-      image: [personDataUrl, garmentDataUrl],
-      sequential_image_generation: "disabled",
-      response_format: "url",
-      size: "2K",
-      stream: false,
-      watermark: true,
-    }),
-  });
+  try {
+    const start = await fetch("https://ark.cn-beijing.volces.com/api/v3/images/generations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        prompt,
+        image: [personDataUrl, garmentDataUrl],
+        sequential_image_generation: "disabled",
+        response_format: "url",
+        size: "2K",
+        stream: false,
+        watermark: true,
+      }),
+    });
 
-  if (!start.ok) {
-    const text = await start.text();
+    if (!start.ok) {
+      const text = await start.text();
 
-    throw new Error(`Doubao generation failed: ${start.status} ${text}`);
+      throw new Error(`Doubao generation failed: ${start.status} ${text}`);
+    }
+
+    const json = (await start.json()) as unknown;
+    const url = extractDoubaoOutputUrl(json);
+
+    if (!url) {
+      throw new Error("Doubao returned no image URL");
+    }
+
+    const imageRes = await fetch(url);
+
+    if (!imageRes.ok) {
+      throw new Error(`Failed to download Doubao output: ${imageRes.status}`);
+    }
+
+    const buf = Buffer.from(await imageRes.arrayBuffer());
+
+    return {
+      imageBase64: buf.toString("base64"),
+      mimeType: imageRes.headers.get("content-type") ?? "image/png",
+      mode: "doubao",
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Unknown Doubao error";
+
+    console.warn("Doubao try-on unavailable, falling back to placeholder:", message);
+    return null;
   }
-
-  const json = (await start.json()) as unknown;
-  const url = extractDoubaoOutputUrl(json);
-
-  if (!url) {
-    throw new Error("Doubao returned no image URL");
-  }
-
-  const imageRes = await fetch(url);
-
-  if (!imageRes.ok) {
-    throw new Error(`Failed to download Doubao output: ${imageRes.status}`);
-  }
-
-  const buf = Buffer.from(await imageRes.arrayBuffer());
-
-  return {
-    imageBase64: buf.toString("base64"),
-    mimeType: imageRes.headers.get("content-type") ?? "image/png",
-    mode: "doubao",
-  };
 }
 
 /**
