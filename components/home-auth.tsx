@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { Session } from "@supabase/supabase-js";
+import Turnstile from "react-turnstile";
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { usernameToAuthEmail } from "@/lib/auth/username-email";
@@ -33,6 +34,8 @@ export function HomeAuth() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
 
   const refreshSession = useCallback(async () => {
     if (!supabase) {
@@ -70,6 +73,7 @@ export function HomeAuth() {
     setMode(null);
     setError(null);
     setPassword("");
+    setCaptchaToken(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -96,10 +100,33 @@ export function HomeAuth() {
       return;
     }
 
+    if (turnstileSiteKey && !captchaToken) {
+      setError("请先完成人机验证。");
+
+      return;
+    }
+
     setBusy(true);
     setInfo(null);
 
     try {
+      if (turnstileSiteKey) {
+        const verifyRes = await fetch("/api/turnstile/verify", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            token: captchaToken,
+          }),
+        });
+        const verifyJson = (await verifyRes.json()) as { error?: string };
+
+        if (!verifyRes.ok) {
+          throw new Error(verifyJson.error ?? "人机验证未通过，请重试。");
+        }
+      }
+
       const email = await usernameToAuthEmail(u);
 
       if (mode === "register") {
@@ -107,6 +134,7 @@ export function HomeAuth() {
           email,
           password,
           options: {
+            captchaToken: captchaToken ?? undefined,
             data: {
               userid: u,
               name: u,
@@ -131,6 +159,9 @@ export function HomeAuth() {
         const { error: signInErr } = await supabase.auth.signInWithPassword({
           email,
           password,
+          options: {
+            captchaToken: captchaToken ?? undefined,
+          },
         });
 
         if (signInErr) {
@@ -293,6 +324,28 @@ export function HomeAuth() {
                     disabled={busy}
                   />
                 </div>
+                {turnstileSiteKey ? (
+                  <div className="space-y-2">
+                    <Label>人机验证</Label>
+                    <Turnstile
+                      sitekey={turnstileSiteKey}
+                      theme="light"
+                      onVerify={(token) => {
+                        setCaptchaToken(token);
+                        setError(null);
+                      }}
+                      onExpire={() => setCaptchaToken(null)}
+                      onError={() => {
+                        setCaptchaToken(null);
+                        setError("人机验证失败，请重试。");
+                      }}
+                    />
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    未配置 <code>NEXT_PUBLIC_TURNSTILE_SITE_KEY</code>，当前跳过人机验证。
+                  </p>
+                )}
                 <div className="flex justify-end gap-2 pt-2">
                   <Button type="button" variant="outline" disabled={busy} onClick={closeModal}>
                     取消
