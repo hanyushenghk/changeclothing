@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Camera, Shirt, Sparkles } from "lucide-react";
 
 import { HomeAuth } from "@/components/home-auth";
+import { HomeAIGenerator } from "@/components/home-ai-generator";
 import { Container } from "@/components/theme/container";
 import { DisplayHeading, SectionLabel } from "@/components/theme/heading";
 import { Lead } from "@/components/theme/paragraph";
@@ -52,6 +53,7 @@ export default function Home() {
               </Link>
             </div>
             <HomeAuth />
+            <HomeAIGenerator />
           </div>
           <Card className="sidefolio-card border-dashed bg-neutral-50/40">
             <CardHeader>

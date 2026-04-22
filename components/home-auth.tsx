@@ -14,7 +14,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, X } from "lucide-react";
 
-type Mode = "register" | "login" | null;
+type Mode = "register" | "login" | "forgot" | null;
 
 function getSupabaseOrNull() {
   try {
@@ -30,12 +30,31 @@ export function HomeAuth() {
   const [loadingSession, setLoadingSession] = useState(true);
   const [mode, setMode] = useState<Mode>(null);
   const [username, setUsername] = useState("");
+  const [emailInput, setEmailInput] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaKey, setCaptchaKey] = useState(0);
+  const [isLocalHost, setIsLocalHost] = useState(false);
   const turnstileSiteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "";
+  const turnstileDevBypass = process.env.NEXT_PUBLIC_TURNSTILE_DEV_BYPASS === "true";
+  const turnstileBypassed = turnstileSiteKey && turnstileDevBypass && isLocalHost;
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const host = window.location.hostname;
+    setIsLocalHost(host === "127.0.0.1" || host === "localhost");
+  }, []);
+
+  useEffect(() => {
+    if (mode && turnstileBypassed) {
+      setCaptchaToken("local-dev-bypass-token");
+    }
+  }, [mode, turnstileBypassed]);
 
   const refreshSession = useCallback(async () => {
     if (!supabase) {
@@ -73,7 +92,9 @@ export function HomeAuth() {
     setMode(null);
     setError(null);
     setPassword("");
+    setEmailInput("");
     setCaptchaToken(null);
+    setCaptchaKey((n) => n + 1);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -87,20 +108,33 @@ export function HomeAuth() {
     }
 
     const u = username.trim();
+    const emailTyped = emailInput.trim().toLowerCase();
 
-    if (u.length < 2) {
-      setError("用户名至少 2 个字符。");
+    if ((mode === "register" || mode === "login") && u.length < 2) {
+      setError("用户名/账号至少 2 个字符。");
 
       return;
     }
 
-    if (password.length < 6) {
+    if ((mode === "register" || mode === "forgot") && !emailTyped) {
+      setError("请输入邮箱地址。");
+
+      return;
+    }
+
+    if ((mode === "register" || mode === "forgot") && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTyped)) {
+      setError("请输入有效的邮箱地址。");
+
+      return;
+    }
+
+    if (mode !== "forgot" && password.length < 6) {
       setError("密码至少 6 位（与 Supabase 项目策略一致，可在控制台调整）。");
 
       return;
     }
 
-    if (turnstileSiteKey && !captchaToken) {
+    if (turnstileSiteKey && !turnstileBypassed && !captchaToken) {
       setError("请先完成人机验证。");
 
       return;
@@ -110,7 +144,7 @@ export function HomeAuth() {
     setInfo(null);
 
     try {
-      if (turnstileSiteKey) {
+      if (turnstileSiteKey && !turnstileBypassed) {
         const verifyRes = await fetch("/api/turnstile/verify", {
           method: "POST",
           headers: {
@@ -120,14 +154,21 @@ export function HomeAuth() {
             token: captchaToken,
           }),
         });
-        const verifyJson = (await verifyRes.json()) as { error?: string };
+        const verifyJson = (await verifyRes.json()) as { error?: string; codes?: string[] };
 
         if (!verifyRes.ok) {
-          throw new Error(verifyJson.error ?? "人机验证未通过，请重试。");
+          const codes = verifyJson.codes?.length ? `（${verifyJson.codes.join(", ")}）` : "";
+          throw new Error((verifyJson.error ?? "人机验证未通过，请重试。") + codes);
         }
       }
 
-      const email = await usernameToAuthEmail(u);
+      const identifier = u.toLowerCase();
+      const email =
+        mode === "register" || mode === "forgot"
+          ? emailTyped
+          : identifier.includes("@")
+            ? identifier
+            : await usernameToAuthEmail(identifier);
 
       if (mode === "register") {
         const { data: signUpData, error: signUpErr } = await supabase.auth.signUp({
@@ -138,6 +179,7 @@ export function HomeAuth() {
             data: {
               userid: u,
               name: u,
+              email: emailTyped,
             },
           },
         });
@@ -167,6 +209,35 @@ export function HomeAuth() {
         if (signInErr) {
           throw signInErr;
         }
+      } else if (mode === "forgot") {
+        const redirectTo =
+          typeof window !== "undefined"
+            ? `${window.location.origin}/reset-password`
+            : undefined;
+        const forgotRes = await fetch("/api/auth/forgot-password", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            redirectTo,
+            captchaToken: captchaToken ?? undefined,
+          }),
+        });
+        const forgotJson = (await forgotRes.json()) as { error?: string; bypassed?: boolean };
+
+        if (!forgotRes.ok) {
+          throw new Error(forgotJson.error ?? "发送重置邮件失败。");
+        }
+
+        closeModal();
+        setInfo(
+          forgotJson.bypassed
+            ? "本地开发模式：已跳过实际邮件发送（网络不可达），流程验证通过。"
+            : "已发送重置密码链接到该邮箱，请前往邮箱完成密码重置。",
+        );
+        return;
       }
 
       closeModal();
@@ -175,9 +246,16 @@ export function HomeAuth() {
         setInfo("注册成功，已登录。");
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : "操作失败";
+      const rawMessage = err instanceof Error ? err.message : "操作失败";
+      const failedToFetch = rawMessage.toLowerCase().includes("failed to fetch");
+      const message =
+        failedToFetch && mode === "forgot"
+          ? "发送重置邮件失败：当前网络无法连接 Supabase（DNS/代理/VPN 问题）。请检查网络后重试。"
+          : rawMessage;
 
       setError(message);
+      setCaptchaToken(null);
+      setCaptchaKey((n) => n + 1);
     } finally {
       setBusy(false);
     }
@@ -263,6 +341,19 @@ export function HomeAuth() {
           </>
         )}
       </div>
+      {!loadingSession && !session ? (
+        <button
+          type="button"
+          className="text-sm text-primary underline-offset-4 hover:underline"
+          onClick={() => {
+            setMode("forgot");
+            setError(null);
+            setInfo(null);
+          }}
+        >
+          忘记密码？
+        </button>
+      ) : null}
 
       {mode ? (
         <div
@@ -284,11 +375,15 @@ export function HomeAuth() {
               <X className="size-4" />
             </button>
             <CardHeader>
-              <CardTitle id="auth-title">{mode === "register" ? "注册账号" : "登录"}</CardTitle>
+              <CardTitle id="auth-title">
+                {mode === "register" ? "注册账号" : mode === "login" ? "登录" : "找回密码"}
+              </CardTitle>
               <CardDescription>
                 {mode === "register"
-                  ? "设置用户名与密码。用户名支持中文；系统将安全映射为登录账号。"
-                  : "输入注册时的用户名与密码。"}
+                  ? "设置用户名、邮箱与密码。忘记密码时将向该邮箱发送重置链接。"
+                  : mode === "login"
+                    ? "输入邮箱或用户名，以及密码。"
+                    : "输入你的邮箱，我们会向该邮箱发送密码重置链接。"}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -299,47 +394,86 @@ export function HomeAuth() {
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 ) : null}
-                <div className="space-y-2">
-                  <Label htmlFor="auth-username">用户名</Label>
-                  <Input
-                    id="auth-username"
-                    name="username"
-                    autoComplete="username"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="例如：zhangsan"
-                    disabled={busy}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="auth-password">密码</Label>
-                  <Input
-                    id="auth-password"
-                    name="password"
-                    type="password"
-                    autoComplete={mode === "register" ? "new-password" : "current-password"}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="至少 6 位"
-                    disabled={busy}
-                  />
-                </div>
+                {mode !== "forgot" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-username">
+                      {mode === "login" ? "账号（邮箱或用户名）" : "用户名"}
+                    </Label>
+                    <Input
+                      id="auth-username"
+                      name="username"
+                      autoComplete="username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      placeholder={mode === "login" ? "例如：name@example.com 或 zhangsan" : "例如：zhangsan"}
+                      disabled={busy}
+                    />
+                  </div>
+                ) : null}
+                {(mode === "register" || mode === "forgot") ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-email">邮箱</Label>
+                    <Input
+                      id="auth-email"
+                      name="email"
+                      type="email"
+                      autoComplete="email"
+                      value={emailInput}
+                      onChange={(e) => setEmailInput(e.target.value)}
+                      placeholder="例如：name@example.com"
+                      disabled={busy}
+                    />
+                  </div>
+                ) : null}
+                {mode !== "forgot" ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="auth-password">密码</Label>
+                    <Input
+                      id="auth-password"
+                      name="password"
+                      type="password"
+                      autoComplete={mode === "register" ? "new-password" : "current-password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="至少 6 位"
+                      disabled={busy}
+                    />
+                  </div>
+                ) : null}
                 {turnstileSiteKey ? (
                   <div className="space-y-2">
                     <Label>人机验证</Label>
-                    <Turnstile
-                      sitekey={turnstileSiteKey}
-                      theme="light"
-                      onVerify={(token) => {
-                        setCaptchaToken(token);
-                        setError(null);
-                      }}
-                      onExpire={() => setCaptchaToken(null)}
-                      onError={() => {
-                        setCaptchaToken(null);
-                        setError("人机验证失败，请重试。");
-                      }}
-                    />
+                    {turnstileBypassed ? (
+                      <p className="text-xs text-muted-foreground">
+                        本地开发模式：已跳过 Turnstile 组件加载（使用开发兜底验证）。
+                      </p>
+                    ) : (
+                      <Turnstile
+                        key={captchaKey}
+                        sitekey={turnstileSiteKey}
+                        theme="light"
+                        onVerify={(token) => {
+                          setCaptchaToken(token);
+                          setError(null);
+                        }}
+                        onExpire={() => setCaptchaToken(null)}
+                        onError={(code) => {
+                          const isLocalBypassCase = turnstileDevBypass && isLocalHost && String(code) === "110200";
+
+                          if (isLocalBypassCase) {
+                            setCaptchaToken("local-dev-bypass-token");
+                            setError(null);
+                            setInfo("本地开发模式：Turnstile 前端异常(110200)，已启用本地兜底验证。");
+                            return;
+                          }
+
+                          setCaptchaToken(null);
+                          setError(
+                            `人机验证失败，请重试。${code ? `（${String(code)}）` : ""} 请确认 Turnstile 已允许当前域名（127.0.0.1 / localhost）。`,
+                          );
+                        }}
+                      />
+                    )}
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
@@ -352,7 +486,7 @@ export function HomeAuth() {
                   </Button>
                   <Button type="submit" disabled={busy} className="gap-2">
                     {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-                    {mode === "register" ? "注册" : "登录"}
+                    {mode === "register" ? "注册" : mode === "login" ? "登录" : "发送重置链接"}
                   </Button>
                 </div>
               </form>

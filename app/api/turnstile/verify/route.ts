@@ -5,6 +5,7 @@ export const runtime = "nodejs";
 type VerifyResponse = {
   success: boolean;
   "error-codes"?: string[];
+  hostname?: string;
 };
 
 export async function POST(request: Request) {
@@ -43,10 +44,37 @@ export async function POST(request: Request) {
     const result = (await response.json()) as VerifyResponse;
 
     if (!result.success) {
+      const codes = result["error-codes"] ?? [];
+      const isLocalHost =
+        request.headers.get("host")?.includes("localhost")
+        || request.headers.get("host")?.includes("127.0.0.1");
+      const allowLocalBypass =
+        process.env.NODE_ENV !== "production"
+        && process.env.TURNSTILE_DEV_BYPASS === "true"
+        && isLocalHost;
+
+      if (allowLocalBypass && codes.includes("invalid-input-response")) {
+        console.warn("[turnstile] local bypass enabled for invalid-input-response", {
+          codes,
+          hostname: result.hostname ?? "unknown",
+        });
+        return NextResponse.json({
+          ok: true,
+          bypassed: true,
+          reason: "local-dev-invalid-input-response",
+        });
+      }
+
+      console.warn("[turnstile] verification failed", {
+        codes,
+        hostname: result.hostname ?? "unknown",
+      });
+
       return NextResponse.json(
         {
           error: "Turnstile verification failed.",
-          codes: result["error-codes"] ?? [],
+          codes,
+          hostname: result.hostname ?? null,
         },
         { status: 400 },
       );
