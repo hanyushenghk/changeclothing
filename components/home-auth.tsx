@@ -97,6 +97,29 @@ export function HomeAuth() {
     setCaptchaKey((n) => n + 1);
   };
 
+  const triggerWelcomeEmail = useCallback((email: string, name: string) => {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 3000);
+
+    void fetch("/api/auth/send-welcome-email", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email,
+        name,
+      }),
+      signal: controller.signal,
+    })
+      .catch((mailErr) => {
+        console.warn("send welcome email failed:", mailErr);
+      })
+      .finally(() => {
+        clearTimeout(timeout);
+      });
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -188,18 +211,7 @@ export function HomeAuth() {
           throw signUpErr;
         }
 
-        await fetch("/api/auth/send-welcome-email", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            name: u,
-          }),
-        }).catch((mailErr) => {
-          console.warn("send welcome email failed:", mailErr);
-        });
+        triggerWelcomeEmail(email, u);
 
         if (signUpData.user && !signUpData.session) {
           closeModal();
