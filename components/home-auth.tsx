@@ -188,6 +188,19 @@ export function HomeAuth() {
           throw signUpErr;
         }
 
+        await fetch("/api/auth/send-welcome-email", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            name: u,
+          }),
+        }).catch((mailErr) => {
+          console.warn("send welcome email failed:", mailErr);
+        });
+
         if (signUpData.user && !signUpData.session) {
           closeModal();
           setInfo(
