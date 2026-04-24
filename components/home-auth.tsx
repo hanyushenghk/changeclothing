@@ -98,11 +98,9 @@ export function HomeAuth() {
   };
 
   const triggerWelcomeEmail = useCallback((email: string, name: string) => {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 3000);
-
     void fetch("/api/auth/send-welcome-email", {
       method: "POST",
+      keepalive: true,
       headers: {
         "Content-Type": "application/json",
       },
@@ -110,13 +108,15 @@ export function HomeAuth() {
         email,
         name,
       }),
-      signal: controller.signal,
     })
+      .then(async (res) => {
+        if (!res.ok) {
+          const body = (await res.json().catch(() => null)) as { error?: string } | null;
+          console.warn("send welcome email failed:", body?.error ?? `status ${res.status}`);
+        }
+      })
       .catch((mailErr) => {
         console.warn("send welcome email failed:", mailErr);
-      })
-      .finally(() => {
-        clearTimeout(timeout);
       });
   }, []);
 
