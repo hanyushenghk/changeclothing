@@ -119,37 +119,63 @@ export async function sendDailyLoveLetter(userEmail: string, userName: string) {
 }
 
 type DailyMember = {
-  email: string | null;
-  name: string | null;
-  userid: string | null;
+  email: string;
+  name: string;
 };
 
 export async function sendDailyLoveLetterToAll() {
   const supabase = createAdminSupabaseClient();
-  const { data, error } = await supabase.from("users").select("email,name,userid").not("email", "is", null);
+  const members: DailyMember[] = [];
+  let page = 1;
+  const perPage = 200;
 
-  if (error) {
-    throw new Error(`Load users failed: ${error.message}`);
+  while (true) {
+    const { data, error } = await supabase.auth.admin.listUsers({
+      page,
+      perPage,
+    });
+
+    if (error) {
+      throw new Error(`Load auth users failed: ${error.message}`);
+    }
+
+    const users = data.users ?? [];
+    for (const user of users) {
+      const email = user.email?.trim().toLowerCase();
+      if (!email) {
+        continue;
+      }
+
+      const meta = user.user_metadata ?? {};
+      const name =
+        (typeof meta.name === "string" && meta.name.trim())
+        || (typeof meta.userid === "string" && meta.userid.trim())
+        || email.split("@")[0]
+        || "friend";
+
+      members.push({ email, name });
+    }
+
+    if (users.length < perPage) {
+      break;
+    }
+    page += 1;
   }
 
-  const users = ((data ?? []) as DailyMember[]).filter((u) => !!u.email);
   const result = {
-    total: users.length,
+    total: members.length,
     sent: 0,
     failed: 0,
   };
 
-  for (const user of users) {
-    const email = user.email!.trim().toLowerCase();
-    const name = user.name?.trim() || user.userid?.trim() || "friend";
-
+  for (const user of members) {
     try {
-      await sendDailyLoveLetter(email, name);
+      await sendDailyLoveLetter(user.email, user.name);
       result.sent += 1;
     } catch (err) {
       result.failed += 1;
       const message = err instanceof Error ? err.message : "unknown error";
-      console.error("[daily-love-letter] send failed", { email, name, message });
+      console.error("[daily-love-letter] send failed", { email: user.email, name: user.name, message });
     }
   }
 
