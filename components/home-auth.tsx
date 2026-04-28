@@ -1,9 +1,13 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 
 import type { Session } from "@supabase/supabase-js";
-import Turnstile from "react-turnstile";
+const Turnstile = dynamic(() => import("react-turnstile"), {
+  ssr: false,
+  loading: () => <p className="text-xs text-muted-foreground">验证组件加载中…</p>,
+});
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { usernameToAuthEmail } from "@/lib/auth/username-email";

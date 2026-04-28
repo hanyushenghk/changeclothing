@@ -1,11 +1,6 @@
-"use client";
-
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 
 import { History, House, Shirt, Sparkles } from "lucide-react";
-
-import { cn } from "@/lib/utils";
 
 const navItems = [
   { href: "/", label: "Overview", icon: House },
@@ -14,8 +9,6 @@ const navItems = [
 ];
 
 export function AppShellSidebar() {
-  const pathname = usePathname();
-
   return (
     <aside className="hidden h-screen w-60 shrink-0 flex-col justify-between border-r border-neutral-200 bg-neutral-100 px-5 py-8 lg:flex">
       <div>
@@ -31,19 +24,15 @@ export function AppShellSidebar() {
 
         <nav className="mt-10 space-y-1">
           {navItems.map((item) => {
-            const active = pathname === item.href;
             const Icon = item.icon;
 
             return (
               <Link
                 key={item.href}
                 href={item.href}
-                className={cn(
-                  "flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-600 transition-all duration-200 hover:translate-x-0.5 hover:bg-white hover:text-neutral-900",
-                  active && "translate-x-0.5 bg-white text-neutral-900 shadow-sm ring-1 ring-neutral-200",
-                )}
+                className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-neutral-600 transition-all duration-200 hover:translate-x-0.5 hover:bg-white hover:text-neutral-900"
               >
-                <Icon className={cn("size-4", active && "text-sky-500")} aria-hidden />
+                <Icon className="size-4" aria-hidden />
                 <span>{item.label}</span>
               </Link>
             );
@@ -55,6 +44,12 @@ export function AppShellSidebar() {
         <p className="font-medium text-neutral-900">Preview Notice</p>
         <p className="mt-1 leading-relaxed">
           Generated images are for shopping reference only and not sizing advice.
+        </p>
+        <p className="mt-2 leading-relaxed">
+          Have issues or suggestions? Contact us:{" "}
+          <a className="text-sky-600 underline underline-offset-2" href="mailto:feedback@hkcomass.org">
+            feedback@hkcomass.org
+          </a>
         </p>
         <div className="mt-3 inline-flex items-center gap-1 text-sky-600">
           <Sparkles className="size-3.5" aria-hidden />

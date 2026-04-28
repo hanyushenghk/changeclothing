@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import localFont from "next/font/local";
+import Script from "next/script";
 
 import { MobileTopNav } from "@/components/mobile-top-nav";
 import { AppShellSidebar } from "@/components/app-shell-sidebar";
@@ -48,6 +49,18 @@ export default function RootLayout({
             {children}
           </main>
         </div>
+        {process.env.NEXT_PUBLIC_CRISP_WEBSITE_ID ? (
+          <>
+            <Script id="crisp-init" strategy="lazyOnload">
+              {`window.$crisp=[];window.CRISP_WEBSITE_ID="${process.env.NEXT_PUBLIC_CRISP_WEBSITE_ID}";`}
+            </Script>
+            <Script
+              id="crisp-loader"
+              src="https://client.crisp.chat/l.js"
+              strategy="lazyOnload"
+            />
+          </>
+        ) : null}
       </body>
     </html>
   );
