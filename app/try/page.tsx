@@ -1,9 +1,25 @@
+import type { Metadata } from "next";
+
 import { GameProvider } from "@/context/game-context";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { TryOnWorkspace } from "@/components/try-on/try-on-workspace";
 
-export const metadata = {
-  title: "Try on · ChangeClothing",
+const tryDescription =
+  "Upload your photo and a garment image to generate a virtual try-on preview for shopping reference.";
+
+export const metadata: Metadata = {
+  title: "Try on",
+  description: tryDescription,
+  alternates: { canonical: "/try" },
+  openGraph: {
+    title: "Try on · ChangeClothing",
+    description: tryDescription,
+    url: "/try",
+  },
+  twitter: {
+    title: "Try on · ChangeClothing",
+    description: tryDescription,
+  },
 };
 
 export default function TryOnPage() {

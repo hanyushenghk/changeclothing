@@ -5,6 +5,7 @@ import Script from "next/script";
 
 import { MobileTopNav } from "@/components/mobile-top-nav";
 import { AppShellSidebar } from "@/components/app-shell-sidebar";
+import { getSiteUrl } from "@/lib/site-url";
 import "./globals.css";
 
 const inter = Inter({
@@ -20,13 +21,28 @@ const calSans = localFont({
   display: "swap",
 });
 
+const siteDescription =
+  "Low-friction virtual try-on previews for online apparel shopping—reference imagery, not sizing advice.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(getSiteUrl()),
   title: {
     default: "ChangeClothing",
     template: "%s · ChangeClothing",
   },
-  description:
-    "Low-friction virtual try-on previews for online apparel shopping—reference imagery, not sizing advice.",
+  description: siteDescription,
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    siteName: "ChangeClothing",
+    title: "ChangeClothing",
+    description: siteDescription,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "ChangeClothing",
+    description: siteDescription,
+  },
 };
 
 export default function RootLayout({

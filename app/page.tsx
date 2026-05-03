@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 
 import { ArrowRight, Camera, Shirt, Sparkles } from "lucide-react";
@@ -9,9 +10,61 @@ import { Lead } from "@/components/theme/paragraph";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { getSiteUrl } from "@/lib/site-url";
+
+const homeOgDescription =
+  "Low-friction virtual try-on for overseas shoppers: upload a photo and garment image for a shopping-context preview.";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+  openGraph: {
+    url: "/",
+    description: homeOgDescription,
+  },
+  twitter: {
+    description: homeOgDescription,
+  },
+};
+
+function HomeJsonLd() {
+  const siteUrl = getSiteUrl();
+  const description =
+    "Low-friction virtual try-on previews for online apparel shopping—reference imagery, not sizing advice.";
+  const graph = {
+    "@context": "https://schema.org",
+    "@graph": [
+      {
+        "@type": "WebSite",
+        name: "ChangeClothing",
+        url: siteUrl,
+        description,
+      },
+      {
+        "@type": "SoftwareApplication",
+        name: "ChangeClothing",
+        applicationCategory: "UtilitiesApplication",
+        operatingSystem: "Web",
+        description,
+        offers: {
+          "@type": "Offer",
+          price: "0",
+          priceCurrency: "USD",
+        },
+      },
+    ],
+  };
+  return (
+    <script
+      type="application/ld+json"
+      dangerouslySetInnerHTML={{ __html: JSON.stringify(graph) }}
+    />
+  );
+}
 
 export default function Home() {
   return (
+    <>
+      <HomeJsonLd />
     <Container>
       <div className="sidefolio-section flex flex-col">
       <div className="space-y-4">
@@ -87,5 +140,6 @@ export default function Home() {
       </main>
       </div>
     </Container>
+    </>
   );
 }
