@@ -14,9 +14,9 @@ export default function AuthCodeErrorPage() {
   return (
     <Container>
       <div className="sidefolio-section mx-auto max-w-md space-y-4 py-12 text-center">
-        <h1 className="font-heading text-2xl font-semibold tracking-tight text-neutral-900">GitHub 登录未完成</h1>
+        <h1 className="font-heading text-2xl font-semibold tracking-tight text-neutral-900">第三方登录未完成</h1>
         <p className="text-sm text-muted-foreground">
-          授权被取消、链接已过期或配置有误。请关闭本页后从网站再次点击「使用 GitHub 登录」重试。
+          授权被取消、链接已过期或配置有误。请关闭本页后从网站再次使用 GitHub / Google 登录重试。
         </p>
         <Link href="/" className={cn(buttonVariants(), "inline-flex rounded-xl")}>
           返回首页
