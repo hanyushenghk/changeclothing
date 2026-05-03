@@ -18,6 +18,9 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, X } from "lucide-react";
 
+import { Separator } from "@/components/ui/separator";
+import { cn } from "@/lib/utils";
+
 type Mode = "register" | "login" | "forgot" | null;
 
 function getSupabaseOrNull() {
@@ -26,6 +29,17 @@ function getSupabaseOrNull() {
   } catch {
     return null;
   }
+}
+
+function GitHubMark({ className }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={cn("size-4 shrink-0", className)} aria-hidden>
+      <path
+        fill="currentColor"
+        d="M12 .297c-6.63 0-12 5.373-12 12 0 5.303 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61C4.422 18.07 3.633 17.7 3.633 17.7c-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 22.092 24 17.592 24 12.297c0-6.627-5.373-12-12-12"
+      />
+    </svg>
+  );
 }
 
 export function HomeAuth() {
@@ -37,6 +51,7 @@ export function HomeAuth() {
   const [emailInput, setEmailInput] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [oauthBusy, setOauthBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -99,6 +114,7 @@ export function HomeAuth() {
     setEmailInput("");
     setCaptchaToken(null);
     setCaptchaKey((n) => n + 1);
+    setOauthBusy(false);
   };
 
   const triggerWelcomeEmail = useCallback((email: string, name: string) => {
@@ -290,6 +306,43 @@ export function HomeAuth() {
     }
   };
 
+  const handleGitHubSignIn = async () => {
+    if (!supabase) {
+      return;
+    }
+
+    setError(null);
+    setOauthBusy(true);
+
+    try {
+      const next = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search}` : "/";
+      const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/";
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeNext)}`;
+
+      const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "github",
+        options: {
+          redirectTo,
+        },
+      });
+
+      if (oauthError) {
+        throw oauthError;
+      }
+
+      if (data.url) {
+        window.location.assign(data.url);
+        return;
+      }
+
+      throw new Error("未获得 GitHub 授权地址，请确认 Supabase 控制台已启用 GitHub 提供商。");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "GitHub 登录失败";
+      setError(msg);
+      setOauthBusy(false);
+    }
+  };
+
   const handleSignOut = async () => {
     if (!supabase) {
       return;
@@ -415,7 +468,30 @@ export function HomeAuth() {
                     : "输入你的邮箱，我们会向该邮箱发送密码重置链接。"}
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="space-y-4">
+              {mode === "login" || mode === "register" ? (
+                <>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="w-full gap-2 rounded-xl border-neutral-300"
+                    disabled={busy || oauthBusy}
+                    onClick={() => void handleGitHubSignIn()}
+                  >
+                    {oauthBusy ? (
+                      <Loader2 className="size-4 animate-spin" aria-hidden />
+                    ) : (
+                      <GitHubMark />
+                    )}
+                    使用 GitHub 登录
+                  </Button>
+                  <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                    <Separator className="flex-1" />
+                    <span>或使用邮箱{mode === "register" ? "注册" : "登录"}</span>
+                    <Separator className="flex-1" />
+                  </div>
+                </>
+              ) : null}
               <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
                 {error ? (
                   <Alert variant="destructive">
@@ -510,10 +586,10 @@ export function HomeAuth() {
                   </p>
                 )}
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button type="button" variant="outline" disabled={busy} onClick={closeModal}>
+                  <Button type="button" variant="outline" disabled={busy || oauthBusy} onClick={closeModal}>
                     取消
                   </Button>
-                  <Button type="submit" disabled={busy} className="gap-2">
+                  <Button type="submit" disabled={busy || oauthBusy} className="gap-2">
                     {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
                     {mode === "register" ? "注册" : mode === "login" ? "登录" : "发送重置链接"}
                   </Button>
