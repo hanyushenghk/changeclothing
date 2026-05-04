@@ -12,6 +12,9 @@ import { Label } from "@/components/ui/label";
 type ImageDropZoneProps = {
   label: string;
   description: string;
+  replaceLabel?: string;
+  uploadLabel?: string;
+  formatsHint?: string;
   previewUrl: string | null;
   disabled?: boolean;
   onFile: (file: File | null) => void;
@@ -20,6 +23,9 @@ type ImageDropZoneProps = {
 export function ImageDropZone({
   label,
   description,
+  replaceLabel = "Replace",
+  uploadLabel = "Upload",
+  formatsHint = "JPEG, PNG, or WebP",
   previewUrl,
   disabled,
   onFile,
@@ -39,7 +45,7 @@ export function ImageDropZone({
           onClick={() => inputRef.current?.click()}
         >
           <Upload className="size-4" aria-hidden />
-          {previewUrl ? "Replace" : "Upload"}
+          {previewUrl ? replaceLabel : uploadLabel}
         </Button>
       </div>
       <p className="text-sm text-muted-foreground">{description}</p>
@@ -71,7 +77,7 @@ export function ImageDropZone({
         ) : (
           <div className="flex flex-col items-center gap-2 p-6 text-center text-sm text-muted-foreground">
             <Upload className="size-8 opacity-60" aria-hidden />
-            <span>JPEG, PNG, or WebP</span>
+            <span>{formatsHint}</span>
           </div>
         )}
       </div>

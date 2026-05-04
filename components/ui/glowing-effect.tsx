@@ -1,6 +1,13 @@
 "use client";
 
-import { memo, useCallback, useEffect, useRef, type CSSProperties } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useRef,
+  useSyncExternalStore,
+  type CSSProperties,
+} from "react";
 import { animate } from "motion/react";
 
 import { cn } from "@/lib/utils";
@@ -18,6 +25,20 @@ interface GlowingEffectProps {
   borderWidth?: number;
 }
 
+function subscribeReducedMotion(onChange: () => void) {
+  const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
+function getReducedMotionSnapshot() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+function usePrefersReducedMotion() {
+  return useSyncExternalStore(subscribeReducedMotion, getReducedMotionSnapshot, () => false);
+}
+
 const GlowingEffect = memo(
   ({
     blur = 0,
@@ -31,6 +52,8 @@ const GlowingEffect = memo(
     borderWidth = 1,
     disabled = true,
   }: GlowingEffectProps) => {
+    const prefersReducedMotion = usePrefersReducedMotion();
+    const effectiveDisabled = disabled || prefersReducedMotion;
     const containerRef = useRef<HTMLDivElement>(null);
     const lastPosition = useRef({ x: 0, y: 0 });
     const animationFrameRef = useRef<number>(0);
@@ -93,7 +116,7 @@ const GlowingEffect = memo(
     );
 
     useEffect(() => {
-      if (disabled) return;
+      if (effectiveDisabled) return;
 
       const handleScroll = () => handleMove();
       const handlePointerMove = (e: PointerEvent) => handleMove(e);
@@ -110,7 +133,7 @@ const GlowingEffect = memo(
         window.removeEventListener("scroll", handleScroll);
         document.body.removeEventListener("pointermove", handlePointerMove);
       };
-    }, [handleMove, disabled]);
+    }, [handleMove, effectiveDisabled]);
 
     return (
       <>
@@ -119,7 +142,7 @@ const GlowingEffect = memo(
             "pointer-events-none absolute -inset-px hidden rounded-[inherit] border opacity-0 transition-opacity",
             glow && "opacity-100",
             variant === "white" && "border-white",
-            disabled && "!block",
+            effectiveDisabled && "!block",
           )}
         />
         <div
@@ -139,17 +162,17 @@ const GlowingEffect = memo(
                   var(--black),
                   var(--black) calc(25% / var(--repeating-conic-gradient-times))
                 )`
-                  : `radial-gradient(circle, #dd7bbb 10%, #dd7bbb00 20%),
-                radial-gradient(circle at 40% 40%, #d79f1e 5%, #d79f1e00 15%),
-                radial-gradient(circle at 60% 60%, #5a922c 10%, #5a922c00 20%), 
-                radial-gradient(circle at 40% 60%, #4c7894 10%, #4c789400 20%),
+                  : `radial-gradient(circle, #ec4899 10%, #ec489900 20%),
+                radial-gradient(circle at 40% 40%, #06b6d4 5%, #06b6d400 15%),
+                radial-gradient(circle at 60% 60%, #f472b6 10%, #f472b600 20%),
+                radial-gradient(circle at 40% 60%, #a855f7 10%, #a855f700 20%),
                 repeating-conic-gradient(
                   from 236.84deg at 50% 50%,
-                  #dd7bbb 0%,
-                  #d79f1e calc(25% / var(--repeating-conic-gradient-times)),
-                  #5a922c calc(50% / var(--repeating-conic-gradient-times)), 
-                  #4c7894 calc(75% / var(--repeating-conic-gradient-times)),
-                  #dd7bbb calc(100% / var(--repeating-conic-gradient-times))
+                  #ec4899 0%,
+                  #06b6d4 calc(25% / var(--repeating-conic-gradient-times)),
+                  #f472b6 calc(50% / var(--repeating-conic-gradient-times)),
+                  #a855f7 calc(75% / var(--repeating-conic-gradient-times)),
+                  #ec4899 calc(100% / var(--repeating-conic-gradient-times))
                 )`,
             } as CSSProperties
           }
@@ -158,7 +181,7 @@ const GlowingEffect = memo(
             glow && "opacity-100",
             blur > 0 && "blur-[var(--blur)]",
             className,
-            disabled && "!hidden",
+            effectiveDisabled && "!hidden",
           )}
         >
           <div

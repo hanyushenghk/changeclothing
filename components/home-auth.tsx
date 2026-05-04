@@ -1,13 +1,9 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { Session } from "@supabase/supabase-js";
-const Turnstile = dynamic(() => import("react-turnstile"), {
-  ssr: false,
-  loading: () => <p className="text-xs text-muted-foreground">验证组件加载中…</p>,
-});
 
 import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { usernameToAuthEmail } from "@/lib/auth/username-email";
@@ -19,6 +15,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Loader2, X } from "lucide-react";
 
 import { Separator } from "@/components/ui/separator";
+import { getAuthMessages } from "@/lib/i18n/auth-messages";
+import type { Locale } from "@/lib/i18n/config";
+import { withLocale } from "@/lib/i18n/config";
 import { cn } from "@/lib/utils";
 
 type Mode = "register" | "login" | "forgot" | null;
@@ -72,7 +71,18 @@ function GoogleMark({ className }: { className?: string }) {
   );
 }
 
-export function HomeAuth() {
+export function HomeAuth({ locale }: { locale: Locale }) {
+  const m = getAuthMessages(locale);
+
+  const Turnstile = useMemo(
+    () =>
+      dynamic(() => import("react-turnstile"), {
+        ssr: false,
+        loading: () => <p className="text-xs text-muted-foreground">{m.turnstileLoading}</p>,
+      }),
+    [m.turnstileLoading],
+  );
+
   const [supabase] = useState(() => getSupabaseOrNull());
   const [session, setSession] = useState<Session | null>(null);
   const [loadingSession, setLoadingSession] = useState(true);
@@ -175,7 +185,7 @@ export function HomeAuth() {
     setError(null);
 
     if (!supabase) {
-      setError("Supabase 未配置：请在 .env.local 中填写 NEXT_PUBLIC_SUPABASE_URL 与 NEXT_PUBLIC_SUPABASE_ANON_KEY。");
+      setError(m.supabaseEnv);
 
       return;
     }
@@ -184,31 +194,31 @@ export function HomeAuth() {
     const emailTyped = emailInput.trim().toLowerCase();
 
     if ((mode === "register" || mode === "login") && u.length < 2) {
-      setError("用户名/账号至少 2 个字符。");
+      setError(m.usernameShort);
 
       return;
     }
 
     if ((mode === "register" || mode === "forgot") && !emailTyped) {
-      setError("请输入邮箱地址。");
+      setError(m.emailRequired);
 
       return;
     }
 
     if ((mode === "register" || mode === "forgot") && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailTyped)) {
-      setError("请输入有效的邮箱地址。");
+      setError(m.emailInvalid);
 
       return;
     }
 
     if (mode !== "forgot" && password.length < 6) {
-      setError("密码至少 6 位（与 Supabase 项目策略一致，可在控制台调整）。");
+      setError(m.passwordShort);
 
       return;
     }
 
     if (turnstileSiteKey && !turnstileBypassed && !captchaToken) {
-      setError("请先完成人机验证。");
+      setError(m.captchaRequired);
 
       return;
     }
@@ -230,8 +240,8 @@ export function HomeAuth() {
         const verifyJson = (await verifyRes.json()) as { error?: string; codes?: string[] };
 
         if (!verifyRes.ok) {
-          const codes = verifyJson.codes?.length ? `（${verifyJson.codes.join(", ")}）` : "";
-          throw new Error((verifyJson.error ?? "人机验证未通过，请重试。") + codes);
+          const codes = verifyJson.codes?.length ? ` (${verifyJson.codes.join(", ")})` : "";
+          throw new Error((verifyJson.error ?? m.captchaVerifyFail) + codes);
         }
       }
 
@@ -265,9 +275,7 @@ export function HomeAuth() {
 
         if (signUpData.user && !signUpData.session) {
           closeModal();
-          setInfo(
-            "注册已提交。若你在 Supabase 开启了「邮箱确认」，请前往邮箱完成验证后再登录；若已关闭确认，请直接点击登录。",
-          );
+          setInfo(m.registerPendingEmailVerify);
           setBusy(false);
 
           return;
@@ -287,7 +295,7 @@ export function HomeAuth() {
       } else if (mode === "forgot") {
         const redirectTo =
           typeof window !== "undefined"
-            ? `${window.location.origin}/reset-password`
+            ? `${window.location.origin}${withLocale(locale, "/reset-password")}`
             : undefined;
         const forgotRes = await fetch("/api/auth/forgot-password", {
           method: "POST",
@@ -303,30 +311,23 @@ export function HomeAuth() {
         const forgotJson = (await forgotRes.json()) as { error?: string; bypassed?: boolean };
 
         if (!forgotRes.ok) {
-          throw new Error(forgotJson.error ?? "发送重置邮件失败。");
+          throw new Error(forgotJson.error ?? m.forgotSendFail);
         }
 
         closeModal();
-        setInfo(
-          forgotJson.bypassed
-            ? "本地开发模式：已跳过实际邮件发送（网络不可达），流程验证通过。"
-            : "已发送重置密码链接到该邮箱，请前往邮箱完成密码重置。",
-        );
+        setInfo(forgotJson.bypassed ? m.forgotBypassInfo : m.forgotSentInfo);
         return;
       }
 
       closeModal();
       await refreshSession();
       if (mode === "register") {
-        setInfo("注册成功，已登录。");
+        setInfo(m.registerSuccessLoggedIn);
       }
     } catch (err) {
-      const rawMessage = err instanceof Error ? err.message : "操作失败";
+      const rawMessage = err instanceof Error ? err.message : m.opFailed;
       const failedToFetch = rawMessage.toLowerCase().includes("failed to fetch");
-      const message =
-        failedToFetch && mode === "forgot"
-          ? "发送重置邮件失败：当前网络无法连接 Supabase（DNS/代理/VPN 问题）。请检查网络后重试。"
-          : rawMessage;
+      const message = failedToFetch && mode === "forgot" ? m.forgotNetworkFail : rawMessage;
 
       setError(message);
       setCaptchaToken(null);
@@ -365,12 +366,10 @@ export function HomeAuth() {
         return;
       }
 
-      throw new Error(
-        `未获得 ${OAUTH_LABEL[provider]} 授权地址，请确认 Supabase 控制台已启用 ${OAUTH_LABEL[provider]} 提供商。`,
-      );
+      throw new Error(m.oauthNoUrl(OAUTH_LABEL[provider]));
     } catch (err) {
       const label = OAUTH_LABEL[provider];
-      const msg = err instanceof Error ? err.message : `${label} 登录失败`;
+      const msg = err instanceof Error ? err.message : m.oauthFail(label);
       setError(msg);
       setOauthProviderBusy(null);
     }
@@ -391,10 +390,8 @@ export function HomeAuth() {
   if (!supabase) {
     return (
       <Alert variant="destructive" className="max-w-xl">
-        <AlertTitle>未连接 Supabase</AlertTitle>
-        <AlertDescription>
-          请在 .env.local 中配置 NEXT_PUBLIC_SUPABASE_URL 与 NEXT_PUBLIC_SUPABASE_ANON_KEY 后刷新页面。
-        </AlertDescription>
+        <AlertTitle>{m.notConnectedTitle}</AlertTitle>
+        <AlertDescription>{m.notConnectedDesc}</AlertDescription>
       </Alert>
     );
   }
@@ -403,13 +400,13 @@ export function HomeAuth() {
     session?.user.user_metadata?.name
     ?? session?.user.user_metadata?.userid
     ?? session?.user.email
-    ?? "用户";
+    ?? m.userFallback;
 
   return (
     <div className="space-y-4">
       {info ? (
         <Alert className="max-w-xl border-primary/50 bg-primary/5">
-          <AlertTitle>提示</AlertTitle>
+          <AlertTitle>{m.noticeTitle}</AlertTitle>
           <AlertDescription>{info}</AlertDescription>
         </Alert>
       ) : null}
@@ -417,15 +414,15 @@ export function HomeAuth() {
         {loadingSession ? (
           <span className="flex items-center gap-2 text-sm text-muted-foreground">
             <Loader2 className="size-4 animate-spin" aria-hidden />
-            加载登录状态…
+            {m.loadingSession}
           </span>
         ) : session ? (
           <>
             <p className="text-sm text-muted-foreground">
-              已登录：<span className="font-medium text-foreground">{String(displayName)}</span>
+              {m.signedInPrefix} <span className="font-medium text-foreground">{String(displayName)}</span>
             </p>
             <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleSignOut()}>
-              退出
+              {m.signOut}
             </Button>
           </>
         ) : (
@@ -440,7 +437,7 @@ export function HomeAuth() {
                 setInfo(null);
               }}
             >
-              注册
+              {m.register}
             </Button>
             <Button
               type="button"
@@ -451,7 +448,7 @@ export function HomeAuth() {
                 setInfo(null);
               }}
             >
-              登录
+              {m.login}
             </Button>
           </>
         )}
@@ -466,7 +463,7 @@ export function HomeAuth() {
             setInfo(null);
           }}
         >
-          忘记密码？
+          {m.forgotPassword}
         </button>
       ) : null}
 
@@ -480,25 +477,30 @@ export function HomeAuth() {
             }
           }}
         >
-          <Card className="relative w-full max-w-md shadow-lg" role="dialog" aria-modal="true" aria-labelledby="auth-title">
+          <Card
+            className="relative w-full max-w-md shadow-lg"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-title"
+          >
             <button
               type="button"
               className="absolute right-3 top-3 rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
               onClick={closeModal}
-              aria-label="关闭"
+              aria-label={m.closeAria}
             >
               <X className="size-4" />
             </button>
             <CardHeader>
               <CardTitle id="auth-title">
-                {mode === "register" ? "注册账号" : mode === "login" ? "登录" : "找回密码"}
+                {mode === "register" ? m.modalTitleRegister : mode === "login" ? m.modalTitleLogin : m.modalTitleForgot}
               </CardTitle>
               <CardDescription>
                 {mode === "register"
-                  ? "设置用户名、邮箱与密码。忘记密码时将向该邮箱发送重置链接。"
+                  ? m.modalDescRegister
                   : mode === "login"
-                    ? "输入邮箱或用户名，以及密码。"
-                    : "输入你的邮箱，我们会向该邮箱发送密码重置链接。"}
+                    ? m.modalDescLogin
+                    : m.modalDescForgot}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -508,7 +510,7 @@ export function HomeAuth() {
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full gap-2 rounded-xl border-neutral-300"
+                      className="w-full gap-2 rounded-xl border-border"
                       disabled={busy || oauthProviderBusy !== null}
                       onClick={() => void handleOAuthSignIn("github")}
                     >
@@ -517,12 +519,12 @@ export function HomeAuth() {
                       ) : (
                         <GitHubMark />
                       )}
-                      使用 GitHub 登录
+                      {m.useGithubLogin}
                     </Button>
                     <Button
                       type="button"
                       variant="outline"
-                      className="w-full gap-2 rounded-xl border-neutral-300"
+                      className="w-full gap-2 rounded-xl border-border"
                       disabled={busy || oauthProviderBusy !== null}
                       onClick={() => void handleOAuthSignIn("google")}
                     >
@@ -531,12 +533,12 @@ export function HomeAuth() {
                       ) : (
                         <GoogleMark />
                       )}
-                      使用 Google 登录
+                      {m.useGoogleLogin}
                     </Button>
                   </div>
                   <div className="flex items-center gap-3 text-xs text-muted-foreground">
                     <Separator className="flex-1" />
-                    <span>或使用邮箱{mode === "register" ? "注册" : "登录"}</span>
+                    <span>{mode === "register" ? m.orUseEmailRegister : m.orUseEmailLogin}</span>
                     <Separator className="flex-1" />
                   </div>
                 </>
@@ -544,14 +546,14 @@ export function HomeAuth() {
               <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
                 {error ? (
                   <Alert variant="destructive">
-                    <AlertTitle>错误</AlertTitle>
+                    <AlertTitle>{m.errorTitle}</AlertTitle>
                     <AlertDescription>{error}</AlertDescription>
                   </Alert>
                 ) : null}
                 {mode !== "forgot" ? (
                   <div className="space-y-2">
                     <Label htmlFor="auth-username">
-                      {mode === "login" ? "账号（邮箱或用户名）" : "用户名"}
+                      {mode === "login" ? m.labelAccountLogin : m.labelUsername}
                     </Label>
                     <Input
                       id="auth-username"
@@ -559,14 +561,14 @@ export function HomeAuth() {
                       autoComplete="username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value)}
-                      placeholder={mode === "login" ? "例如：name@example.com 或 zhangsan" : "例如：zhangsan"}
+                      placeholder={mode === "login" ? m.placeholderAccountLogin : m.placeholderUsername}
                       disabled={busy}
                     />
                   </div>
                 ) : null}
-                {(mode === "register" || mode === "forgot") ? (
+                {mode === "register" || mode === "forgot" ? (
                   <div className="space-y-2">
-                    <Label htmlFor="auth-email">邮箱</Label>
+                    <Label htmlFor="auth-email">{m.labelEmail}</Label>
                     <Input
                       id="auth-email"
                       name="email"
@@ -574,14 +576,14 @@ export function HomeAuth() {
                       autoComplete="email"
                       value={emailInput}
                       onChange={(e) => setEmailInput(e.target.value)}
-                      placeholder="例如：name@example.com"
+                      placeholder={m.placeholderEmail}
                       disabled={busy}
                     />
                   </div>
                 ) : null}
                 {mode !== "forgot" ? (
                   <div className="space-y-2">
-                    <Label htmlFor="auth-password">密码</Label>
+                    <Label htmlFor="auth-password">{m.labelPassword}</Label>
                     <Input
                       id="auth-password"
                       name="password"
@@ -589,18 +591,16 @@ export function HomeAuth() {
                       autoComplete={mode === "register" ? "new-password" : "current-password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
-                      placeholder="至少 6 位"
+                      placeholder={m.passwordPlaceholder}
                       disabled={busy}
                     />
                   </div>
                 ) : null}
                 {turnstileSiteKey ? (
                   <div className="space-y-2">
-                    <Label>人机验证</Label>
+                    <Label>{m.labelCaptcha}</Label>
                     {turnstileBypassed ? (
-                      <p className="text-xs text-muted-foreground">
-                        本地开发模式：已跳过 Turnstile 组件加载（使用开发兜底验证）。
-                      </p>
+                      <p className="text-xs text-muted-foreground">{m.turnstileBypassMsg}</p>
                     ) : (
                       <Turnstile
                         key={captchaKey}
@@ -612,18 +612,19 @@ export function HomeAuth() {
                         }}
                         onExpire={() => setCaptchaToken(null)}
                         onError={(code) => {
-                          const isLocalBypassCase = turnstileDevBypass && isLocalHost && String(code) === "110200";
+                          const isLocalBypassCase =
+                            turnstileDevBypass && isLocalHost && String(code) === "110200";
 
                           if (isLocalBypassCase) {
                             setCaptchaToken("local-dev-bypass-token");
                             setError(null);
-                            setInfo("本地开发模式：Turnstile 前端异常(110200)，已启用本地兜底验证。");
+                            setInfo(m.turnstileLocalBypassInfo);
                             return;
                           }
 
                           setCaptchaToken(null);
                           setError(
-                            `人机验证失败，请重试。${code ? `（${String(code)}）` : ""} 请确认 Turnstile 已允许当前域名（127.0.0.1 / localhost）。`,
+                            `${m.turnstileFailPrefix}${code ? ` (${String(code)})` : ""}${m.turnstileFailSuffix}`,
                           );
                         }}
                       />
@@ -631,16 +632,30 @@ export function HomeAuth() {
                   </div>
                 ) : (
                   <p className="text-xs text-muted-foreground">
-                    未配置 <code>NEXT_PUBLIC_TURNSTILE_SITE_KEY</code>，当前跳过人机验证。
+                    {(() => {
+                      const [before, after = ""] = m.turnstileSkipMsg.split("NEXT_PUBLIC_TURNSTILE_SITE_KEY");
+                      return (
+                        <>
+                          {before}
+                          <code>NEXT_PUBLIC_TURNSTILE_SITE_KEY</code>
+                          {after}
+                        </>
+                      );
+                    })()}
                   </p>
                 )}
                 <div className="flex justify-end gap-2 pt-2">
-                  <Button type="button" variant="outline" disabled={busy || oauthProviderBusy !== null} onClick={closeModal}>
-                    取消
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={busy || oauthProviderBusy !== null}
+                    onClick={closeModal}
+                  >
+                    {m.cancel}
                   </Button>
                   <Button type="submit" disabled={busy || oauthProviderBusy !== null} className="gap-2">
                     {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-                    {mode === "register" ? "注册" : mode === "login" ? "登录" : "发送重置链接"}
+                    {mode === "register" ? m.submitRegister : mode === "login" ? m.submitLogin : m.submitForgot}
                   </Button>
                 </div>
               </form>

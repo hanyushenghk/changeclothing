@@ -2,18 +2,26 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { Loader2 } from "lucide-react";
 
-import { createBrowserSupabaseClient } from "@/lib/supabase/client";
+import { Container } from "@/components/theme/container";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button, buttonVariants } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Container } from "@/components/theme/container";
+import { isLocale, withLocale, type Locale } from "@/lib/i18n/config";
+import { getUi } from "@/lib/i18n/ui";
+import { createBrowserSupabaseClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 export default function ResetPasswordPage() {
+  const params = useParams<{ locale: string }>();
+  const raw = params.locale;
+  const locale: Locale = raw && isLocale(raw) ? raw : "en";
+  const ui = getUi(locale).resetPassword;
+
   const [supabase] = useState(() => createBrowserSupabaseClient());
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,9 +37,9 @@ export default function ResetPasswordPage() {
       const hash = window.location.hash.startsWith("#")
         ? window.location.hash.slice(1)
         : window.location.hash;
-      const params = new URLSearchParams(hash);
-      const accessToken = params.get("access_token");
-      const refreshToken = params.get("refresh_token");
+      const hashParams = new URLSearchParams(hash);
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
 
       if (accessToken && refreshToken) {
         const { error: setErr } = await supabase.auth.setSession({
@@ -63,17 +71,17 @@ export default function ResetPasswordPage() {
     setInfo(null);
 
     if (!ready) {
-      setError("重置链接无效或已过期，请重新发起“忘记密码”。");
+      setError(ui.errorInvalidLink);
       return;
     }
 
     if (password.length < 6) {
-      setError("新密码至少 6 位。");
+      setError(ui.errorShort);
       return;
     }
 
     if (password !== confirmPassword) {
-      setError("两次输入的密码不一致。");
+      setError(ui.errorMismatch);
       return;
     }
 
@@ -86,7 +94,7 @@ export default function ResetPasswordPage() {
       return;
     }
 
-    setInfo("密码已重置成功，请返回首页重新登录。");
+    setInfo(ui.success);
     setPassword("");
     setConfirmPassword("");
   };
@@ -96,27 +104,25 @@ export default function ResetPasswordPage() {
       <div className="sidefolio-section">
         <Card className="mx-auto w-full max-w-lg">
           <CardHeader>
-            <CardTitle>重置密码</CardTitle>
-            <CardDescription>
-              请输入新密码。若提示链接失效，请返回首页重新点击“忘记密码”发送新邮件。
-            </CardDescription>
+            <CardTitle>{ui.title}</CardTitle>
+            <CardDescription>{ui.description}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {error ? (
               <Alert variant="destructive">
-                <AlertTitle>错误</AlertTitle>
+                <AlertTitle>{ui.errorTitle}</AlertTitle>
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             ) : null}
             {info ? (
               <Alert>
-                <AlertTitle>成功</AlertTitle>
+                <AlertTitle>{ui.successTitle}</AlertTitle>
                 <AlertDescription>{info}</AlertDescription>
               </Alert>
             ) : null}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <Label htmlFor="new-password">新密码</Label>
+                <Label htmlFor="new-password">{ui.newPassword}</Label>
                 <Input
                   id="new-password"
                   type="password"
@@ -124,11 +130,11 @@ export default function ResetPasswordPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   disabled={busy}
-                  placeholder="至少 6 位"
+                  placeholder={ui.placeholder}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="confirm-password">确认新密码</Label>
+                <Label htmlFor="confirm-password">{ui.confirmPassword}</Label>
                 <Input
                   id="confirm-password"
                   type="password"
@@ -136,16 +142,16 @@ export default function ResetPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   disabled={busy}
-                  placeholder="再次输入新密码"
+                  placeholder={ui.confirmPlaceholder}
                 />
               </div>
               <div className="flex items-center gap-2">
                 <Button type="submit" disabled={busy} className="gap-2">
                   {busy ? <Loader2 className="size-4 animate-spin" aria-hidden /> : null}
-                  更新密码
+                  {ui.submit}
                 </Button>
-                <Link href="/" className={cn(buttonVariants({ variant: "ghost" }))}>
-                  返回首页
+                <Link href={withLocale(locale, "/")} className={cn(buttonVariants({ variant: "ghost" }))}>
+                  {ui.backHome}
                 </Link>
               </div>
             </form>

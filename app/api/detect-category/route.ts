@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import { categoryLabel } from "@/lib/category-labels";
+import { defaultLocale, isLocale, type Locale } from "@/lib/i18n/config";
 import { detectGarmentCategory } from "@/lib/detect-garment";
 
 export const runtime = "nodejs";
@@ -36,9 +37,13 @@ export async function POST(request: Request) {
       mimeType: file.type,
     });
 
+    const localeRaw = form.get("locale");
+    const locale: Locale =
+      typeof localeRaw === "string" && isLocale(localeRaw) ? localeRaw : defaultLocale;
+
     return NextResponse.json({
       category,
-      label: categoryLabel(category),
+      label: categoryLabel(category, locale),
       source,
     });
   } catch (error) {

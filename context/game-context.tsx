@@ -11,6 +11,8 @@ import React, {
 } from "react";
 
 import { categoryLabel } from "@/lib/category-labels";
+import type { Locale } from "@/lib/i18n/config";
+import { getUi } from "@/lib/i18n/ui";
 import { appendHistory } from "@/lib/history-storage";
 import type { GarmentCategory, TryOnMode, TryOnPhase } from "@/lib/types";
 
@@ -59,7 +61,13 @@ function syncReadyState(args: {
   return "idle";
 }
 
-export function GameProvider({ children }: { children: React.ReactNode }) {
+export function GameProvider({
+  children,
+  locale,
+}: {
+  children: React.ReactNode;
+  locale: Locale;
+}) {
   const [personFile, setPersonFileState] = useState<File | null>(null);
   const [garmentFile, setGarmentFileState] = useState<File | null>(null);
   const [personPreviewUrl, setPersonPreviewUrl] = useState<string | null>(null);
@@ -152,6 +160,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       const body = new FormData();
 
       body.append("garment", garmentFile);
+      body.append("locale", locale);
 
       try {
         const res = await fetch("/api/detect-category", {
@@ -198,11 +207,11 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     };
 
     void run();
-  }, [garmentFile]);
+  }, [garmentFile, locale]);
 
   const generate = useCallback(async () => {
     if (!personFile || !garmentFile || !category) {
-      setError("Add your photo and a clothing image, then wait for auto category detection.");
+      setError(getUi(locale).tryOn.needBothForGenerate);
 
       return;
     }
@@ -251,7 +260,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       setError(message);
       setPhase("error");
     }
-  }, [personFile, garmentFile, category]);
+  }, [personFile, garmentFile, category, locale]);
 
   const clearResult = useCallback(() => {
     setResult(null);
@@ -272,7 +281,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
-  const categoryDisplay = category ? categoryLabel(category) : null;
+  const categoryDisplay = category ? categoryLabel(category, locale) : null;
 
   const value = useMemo<GameContextValue>(
     () => ({
@@ -308,6 +317,7 @@ export function GameProvider({ children }: { children: React.ReactNode }) {
       generate,
       clearResult,
       resetSession,
+      locale,
     ],
   );
 

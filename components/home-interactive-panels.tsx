@@ -3,6 +3,8 @@
 import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 
+import type { Locale } from "@/lib/i18n/config";
+
 const HomeAuth = dynamic(
   () => import("@/components/home-auth").then((mod) => mod.HomeAuth),
   {
@@ -19,7 +21,13 @@ const HomeAIGenerator = dynamic(
   },
 );
 
-export function HomeInteractivePanels() {
+export function HomeInteractivePanels({
+  locale,
+  loadAiDemoLabel,
+}: {
+  locale: Locale;
+  loadAiDemoLabel: string;
+}) {
   const [enabled, setEnabled] = useState(false);
   const [showGenerator, setShowGenerator] = useState(false);
   const anchorRef = useRef<HTMLDivElement | null>(null);
@@ -60,16 +68,16 @@ export function HomeInteractivePanels() {
 
   return (
     <div className="space-y-4">
-      <HomeAuth />
+      <HomeAuth locale={locale} />
       {showGenerator ? (
         <HomeAIGenerator />
       ) : (
         <button
           type="button"
-          className="rounded-xl border border-dashed border-neutral-300 px-4 py-3 text-sm text-neutral-700 transition hover:bg-neutral-50"
+          className="cursor-pointer rounded-xl border border-dashed border-border bg-card/50 px-4 py-3 text-left text-sm text-muted-foreground transition-colors duration-200 hover:border-primary/30 hover:bg-muted/50 hover:text-foreground motion-reduce:transition-none"
           onClick={() => setShowGenerator(true)}
         >
-          点击加载 AI Image Demo（按需加载，优化首屏性能）
+          {loadAiDemoLabel}
         </button>
       )}
     </div>

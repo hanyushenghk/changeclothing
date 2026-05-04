@@ -9,6 +9,14 @@ function safeNextPath(next: string | null): string {
   return next;
 }
 
+function localeFromAppPath(path: string): "en" | "zh" {
+  const match = /^\/(en|zh)(\/|$)/.exec(path);
+  if (match?.[1] === "zh" || match?.[1] === "en") {
+    return match[1];
+  }
+  return "en";
+}
+
 function redirectBase(request: NextRequest): string {
   const { origin } = request.nextUrl;
   if (process.env.NODE_ENV === "development") {
@@ -29,8 +37,10 @@ export async function GET(request: NextRequest) {
   const code = request.nextUrl.searchParams.get("code");
   const next = safeNextPath(request.nextUrl.searchParams.get("next"));
   const base = redirectBase(request);
+  const locale = localeFromAppPath(next);
 
-  const toError = () => NextResponse.redirect(new URL("/auth/auth-code-error", base));
+  const toError = () =>
+    NextResponse.redirect(new URL(`/${locale}/auth/auth-code-error`, base));
 
   if (!url || !anon || !code) {
     return toError();

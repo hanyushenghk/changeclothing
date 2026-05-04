@@ -1,70 +1,82 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
-import localFont from "next/font/local";
+import { Manrope, Syne } from "next/font/google";
+import { headers } from "next/headers";
 import Script from "next/script";
 
-import { MobileTopNav } from "@/components/mobile-top-nav";
-import { AppShellSidebar } from "@/components/app-shell-sidebar";
+import { isLocale } from "@/lib/i18n/config";
 import { getSiteUrl } from "@/lib/site-url";
+import { SITE_DESCRIPTION, SITE_KEYWORDS, SITE_NAME } from "@/lib/seo";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const manrope = Manrope({
+  variable: "--font-manrope",
   subsets: ["latin"],
   display: "swap",
 });
 
-const calSans = localFont({
-  src: "../public/fonts/CalSans-SemiBold.woff2",
-  variable: "--font-calsans",
-  weight: "600",
+const syne = Syne({
+  variable: "--font-syne",
+  subsets: ["latin"],
   display: "swap",
 });
 
-const siteDescription =
-  "Low-friction virtual try-on previews for online apparel shopping—reference imagery, not sizing advice.";
-
 export const metadata: Metadata = {
   metadataBase: new URL(getSiteUrl()),
+  applicationName: SITE_NAME,
   title: {
-    default: "ChangeClothing",
-    template: "%s · ChangeClothing",
+    default: SITE_NAME,
+    template: `%s · ${SITE_NAME}`,
   },
-  description: siteDescription,
+  description: SITE_DESCRIPTION,
+  keywords: [...SITE_KEYWORDS],
+  authors: [{ name: SITE_NAME, url: getSiteUrl() }],
+  creator: SITE_NAME,
+  publisher: SITE_NAME,
+  category: "technology",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
   openGraph: {
     type: "website",
     locale: "en_US",
-    siteName: "ChangeClothing",
-    title: "ChangeClothing",
-    description: siteDescription,
+    siteName: SITE_NAME,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
   },
   twitter: {
     card: "summary_large_image",
-    title: "ChangeClothing",
-    description: siteDescription,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const headerList = await headers();
+  const rawLocale = headerList.get("x-cc-locale");
+  const locale = rawLocale && isLocale(rawLocale) ? rawLocale : "en";
+  const htmlLang = locale === "zh" ? "zh-CN" : "en";
+
   return (
-    <html
-      lang="en"
-      className={`${inter.variable} ${calSans.variable} h-full antialiased`}
-    >
-      <body className="min-h-screen bg-neutral-100 text-foreground lg:flex lg:overflow-hidden">
-        <AppShellSidebar />
-        <div className="flex-1 lg:p-2">
-          <main className="min-h-screen bg-white lg:h-[calc(100vh-1rem)] lg:overflow-y-auto lg:rounded-tl-2xl lg:border lg:border-neutral-200">
-            <header className="border-b border-neutral-200 bg-white px-4 py-3 lg:hidden">
-              <MobileTopNav />
-            </header>
-            {children}
-          </main>
-        </div>
+    <html lang={htmlLang} className={`${manrope.variable} ${syne.variable} h-full antialiased`}>
+      <body className="min-h-screen bg-sidebar text-foreground lg:flex lg:overflow-hidden">
+        {children}
         {process.env.NEXT_PUBLIC_CRISP_WEBSITE_ID ? (
           <>
             <Script id="crisp-init" strategy="lazyOnload">
