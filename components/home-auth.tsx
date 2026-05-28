@@ -130,6 +130,8 @@ export function HomeAuth({ locale }: { locale: Locale }) {
   }, [supabase]);
 
   useEffect(() => {
+    void refreshSession();
+
     if (!supabase) {
       return;
     }
@@ -143,7 +145,7 @@ export function HomeAuth({ locale }: { locale: Locale }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase]);
+  }, [supabase, refreshSession]);
 
   const closeModal = () => {
     setMode(null);
