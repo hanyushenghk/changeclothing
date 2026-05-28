@@ -10,20 +10,8 @@ import {
 } from "react";
 import { animate } from "motion/react";
 
+import type { GlowingEffectProps } from "@/components/ui/glowing-effect-types";
 import { cn } from "@/lib/utils";
-
-interface GlowingEffectProps {
-  blur?: number;
-  inactiveZone?: number;
-  proximity?: number;
-  spread?: number;
-  variant?: "default" | "white";
-  glow?: boolean;
-  className?: string;
-  disabled?: boolean;
-  movementDuration?: number;
-  borderWidth?: number;
-}
 
 function subscribeReducedMotion(onChange: () => void) {
   const mq = window.matchMedia("(prefers-reduced-motion: reduce)");

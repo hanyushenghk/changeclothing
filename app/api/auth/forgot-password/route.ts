@@ -42,14 +42,6 @@ function isLocalRequest(request: Request): boolean {
   return host.includes("127.0.0.1") || host.includes("localhost");
 }
 
-function shouldAllowLocalBypass(request: Request): boolean {
-  return (
-    process.env.NODE_ENV !== "production"
-    && process.env.TURNSTILE_DEV_BYPASS === "true"
-    && isLocalRequest(request)
-  );
-}
-
 export async function POST(request: Request) {
   try {
     const body = (await request.json()) as ForgotPasswordBody;
@@ -73,15 +65,14 @@ export async function POST(request: Request) {
     }
 
     const firstMessage = firstTry.error.message ?? "";
-    if (
-      shouldAllowLocalBypass(request)
-      && firstMessage.toLowerCase().includes("unable to process request")
-    ) {
-      return NextResponse.json({
-        ok: true,
-        bypassed: true,
-        reason: "local-dev-supabase-unable-to-process-request",
-      });
+    if (isLocalRequest(request) && firstMessage.toLowerCase().includes("unable to process request")) {
+      return NextResponse.json(
+        {
+          error:
+            "Supabase could not process the reset email request on localhost. Check Supabase auth, captcha, and redirect URL settings.",
+        },
+        { status: 502 },
+      );
     }
 
     if (!looksLikeRedirectIssue(firstMessage)) {
@@ -96,7 +87,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: secondTry.error.message }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true, fallbackWithoutRedirectTo: true });
+    return NextResponse.json({ ok: true });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Forgot password failed";
     const cause = error instanceof Error ? (error as Error & { cause?: unknown }).cause : undefined;
@@ -110,14 +101,6 @@ export async function POST(request: Request) {
         : "";
 
     if (code === "ENOTFOUND") {
-      if (shouldAllowLocalBypass(request)) {
-        return NextResponse.json({
-          ok: true,
-          bypassed: true,
-          reason: "local-dev-supabase-dns-unreachable",
-        });
-      }
-
       return NextResponse.json(
         {
           error: `无法连接 Supabase（DNS 解析失败：${hostname || "unknown host"}）。请检查 .env.local 中的 NEXT_PUBLIC_SUPABASE_URL，或切换网络/DNS 后重试。`,
@@ -127,13 +110,10 @@ export async function POST(request: Request) {
     }
 
     if (message.toLowerCase().includes("fetch failed")) {
-      if (shouldAllowLocalBypass(request)) {
-        return NextResponse.json({
-          ok: true,
-          bypassed: true,
-          reason: "local-dev-supabase-fetch-failed",
-        });
-      }
+      return NextResponse.json(
+        { error: "Could not reach Supabase while sending the reset email. Check network and Supabase URL." },
+        { status: 502 },
+      );
     }
 
     return NextResponse.json({ error: message }, { status: 500 });

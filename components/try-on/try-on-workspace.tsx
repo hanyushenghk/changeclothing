@@ -1,26 +1,19 @@
 "use client";
 
-import Link from "next/link";
-
-import Image from "next/image";
-
 import { AlertTriangle, Loader2, Sparkles, Wand2 } from "lucide-react";
-
 import { useGame } from "@/context/game-context";
 import { Container } from "@/components/theme/container";
 import { DisplayHeading, SectionLabel } from "@/components/theme/heading";
 import { Lead } from "@/components/theme/paragraph";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { Button } from "@/components/ui/button";
 import { GlowingEffect } from "@/components/ui/glowing-effect";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ImageDropZone } from "@/components/try-on/image-drop-zone";
+import { TryOnPreviewCard } from "@/components/try-on/try-on-preview-card";
 import type { Locale } from "@/lib/i18n/config";
-import { withLocale } from "@/lib/i18n/config";
 import { getUi } from "@/lib/i18n/ui";
-import { cn } from "@/lib/utils";
-
 export function TryOnWorkspace({ locale }: { locale: Locale }) {
   const ui = getUi(locale);
   const {
@@ -39,10 +32,8 @@ export function TryOnWorkspace({ locale }: { locale: Locale }) {
     personFile,
     garmentFile,
   } = useGame();
-
   const busy = phase === "detecting" || phase === "generating";
   const canGenerate = Boolean(personFile && garmentFile && phase === "ready");
-
   return (
     <Container>
       <div className="sidefolio-section">
@@ -150,9 +141,7 @@ export function TryOnWorkspace({ locale }: { locale: Locale }) {
                 )}
                 {detectionSource ? (
                   <span className="text-xs text-muted-foreground">
-                    (
-                    {detectionSource === "gemini" ? ui.tryOn.visionModel : ui.tryOn.localFallback}
-                    )
+                    ({ui.tryOn.visionModel})
                   </span>
                 ) : null}
               </div>
@@ -203,71 +192,7 @@ export function TryOnWorkspace({ locale }: { locale: Locale }) {
             </CardContent>
           </Card>
 
-          <Card className="sidefolio-card">
-            <CardHeader>
-              <CardTitle className="text-lg">{ui.tryOn.previewTitle}</CardTitle>
-              <CardDescription>
-                {(() => {
-                  const [before, after = ""] = ui.tryOn.previewDesc.split("ARK_API_KEY");
-                  return (
-                    <>
-                      {before}
-                      <code className="rounded bg-muted px-1 py-0.5 text-xs">ARK_API_KEY</code>
-                      {after}
-                    </>
-                  );
-                })()}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {result?.dataUrl ? (
-                <>
-                  {result.mode === "placeholder" ? (
-                    <Alert className="rounded-xl border-border bg-muted/50">
-                      <AlertTitle>{ui.tryOn.placeholderTitle}</AlertTitle>
-                      <AlertDescription>
-                        {(() => {
-                          const [before, after = ""] = ui.tryOn.placeholderDesc.split(".env.example");
-                          return (
-                            <>
-                              {before}
-                              <code>.env.example</code>
-                              {after}
-                            </>
-                          );
-                        })()}
-                      </AlertDescription>
-                    </Alert>
-                  ) : null}
-                  <div className="overflow-hidden rounded-xl border bg-muted/30">
-                    <Image
-                      src={result.dataUrl}
-                      alt={ui.tryOn.previewAlt}
-                      width={900}
-                      height={1200}
-                      className="w-full object-contain"
-                      unoptimized
-                    />
-                  </div>
-                  <a
-                    href={result.dataUrl}
-                    download="changeclothing-tryon.png"
-                    className={cn(buttonVariants({ variant: "secondary" }), "rounded-xl")}
-                  >
-                    {ui.tryOn.downloadPng}
-                  </a>
-                </>
-              ) : (
-                <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 rounded-xl border border-dashed bg-muted/30 p-8 text-center text-sm text-muted-foreground">
-                  <Wand2 className="size-10 opacity-40" aria-hidden />
-                  <p>{ui.tryOn.emptyPreview}</p>
-                  <Link href={withLocale(locale, "/history")} className={cn(buttonVariants({ variant: "link" }))}>
-                    {ui.tryOn.emptyPreviewLink}
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <TryOnPreviewCard locale={locale} resultDataUrl={result?.dataUrl ?? null} ui={ui} />
         </div>
       </div>
     </Container>

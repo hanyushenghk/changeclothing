@@ -1,23 +1,5 @@
-import { createHash } from "node:crypto";
-
 import type { GarmentCategory } from "@/lib/types";
 
-const CATEGORIES: GarmentCategory[] = ["upper_body", "lower_body", "dresses"];
-
-/**
- * Maps arbitrary bytes to a stable category for demos when no vision API is configured.
- * Replace with a real classifier or LLM vision call in production.
- */
-export function categoryFromBytesStable(buffer: Buffer): GarmentCategory {
-  const hash = createHash("sha256").update(buffer).digest();
-  const bucket = hash[0] % CATEGORIES.length;
-
-  return CATEGORIES[bucket] ?? "upper_body";
-}
-
-/**
- * Parses model output into a garment category, with a safe fallback.
- */
 export function normalizeCategoryLabel(raw: string): GarmentCategory {
   const normalized = raw.trim().toLowerCase().replace(/\s+/g, "_");
 
@@ -43,5 +25,5 @@ export function normalizeCategoryLabel(raw: string): GarmentCategory {
     return "upper_body";
   }
 
-  return "upper_body";
+  throw new Error(`Unknown garment category from model: ${raw}`);
 }

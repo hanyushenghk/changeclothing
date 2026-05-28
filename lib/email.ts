@@ -2,6 +2,7 @@ import { Resend } from "resend";
 
 import { WelcomeEmail } from "@/emails/welcome";
 import { createAdminSupabaseClient } from "@/lib/supabase/admin";
+import { buildDailyLoveLetterPrompt } from "@/prompts/daily-love-letter";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const welcomeFrom = process.env.WELCOME_EMAIL_FROM?.trim() || "Paper Plane <hello@hkcompass.org>";
@@ -41,46 +42,42 @@ export async function generateLoveLetter(userName: string) {
   const model = process.env.DAILY_LOVE_MODEL?.trim() || "gemini-1.5-flash";
 
   if (!apiKey) {
-    return `Good morning, ${userName}. Wishing you a focused and productive day.`;
+    throw new Error("Missing GEMINI_API_KEY for daily love letter generation.");
   }
 
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [
-                {
-                  text: `Write one short warm good-morning message in English for ${userName}. Keep it under 40 words and safe for work.`,
-                },
-              ],
-            },
-          ],
-        }),
-      },
-    );
+  const response = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [
+          {
+            parts: [
+              {
+                text: buildDailyLoveLetterPrompt(userName),
+              },
+            ],
+          },
+        ],
+      }),
+    },
+  );
 
-    if (!response.ok) {
-      throw new Error(`Gemini request failed: ${response.status}`);
-    }
-
-    const json = (await response.json()) as {
-      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
-    };
-    const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-
-    if (!text) {
-      throw new Error("Gemini returned empty text");
-    }
-
-    return text;
-  } catch {
-    return `Good morning, ${userName}. Wishing you a focused and productive day.`;
+  if (!response.ok) {
+    throw new Error(`Gemini request failed with status ${response.status} for userName ${userName}.`);
   }
+
+  const json = (await response.json()) as {
+    candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+  };
+  const text = json.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+  if (!text) {
+    throw new Error(`Gemini returned empty daily love letter for userName ${userName}.`);
+  }
+
+  return text;
 }
 
 export async function sendDailyLoveLetter(userEmail: string, userName: string) {

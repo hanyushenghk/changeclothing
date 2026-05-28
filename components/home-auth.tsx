@@ -130,8 +130,6 @@ export function HomeAuth({ locale }: { locale: Locale }) {
   }, [supabase]);
 
   useEffect(() => {
-    void refreshSession();
-
     if (!supabase) {
       return;
     }
@@ -145,7 +143,7 @@ export function HomeAuth({ locale }: { locale: Locale }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, [supabase, refreshSession]);
+  }, [supabase]);
 
   const closeModal = () => {
     setMode(null);
@@ -180,7 +178,7 @@ export function HomeAuth({ locale }: { locale: Locale }) {
       });
   }, []);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const submitAuthForm = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -308,14 +306,14 @@ export function HomeAuth({ locale }: { locale: Locale }) {
             captchaToken: captchaToken ?? undefined,
           }),
         });
-        const forgotJson = (await forgotRes.json()) as { error?: string; bypassed?: boolean };
+        const forgotJson = (await forgotRes.json()) as { error?: string };
 
         if (!forgotRes.ok) {
           throw new Error(forgotJson.error ?? m.forgotSendFail);
         }
 
         closeModal();
-        setInfo(forgotJson.bypassed ? m.forgotBypassInfo : m.forgotSentInfo);
+        setInfo(m.forgotSentInfo);
         return;
       }
 
@@ -337,7 +335,7 @@ export function HomeAuth({ locale }: { locale: Locale }) {
     }
   };
 
-  const handleOAuthSignIn = async (provider: OAuthProviderId) => {
+  const startOAuthSignIn = async (provider: OAuthProviderId) => {
     if (!supabase) {
       return;
     }
@@ -375,7 +373,7 @@ export function HomeAuth({ locale }: { locale: Locale }) {
     }
   };
 
-  const handleSignOut = async () => {
+  const signOutCurrentUser = async () => {
     if (!supabase) {
       return;
     }
@@ -421,7 +419,7 @@ export function HomeAuth({ locale }: { locale: Locale }) {
             <p className="text-sm text-muted-foreground">
               {m.signedInPrefix} <span className="font-medium text-foreground">{String(displayName)}</span>
             </p>
-            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void handleSignOut()}>
+            <Button type="button" variant="outline" size="sm" disabled={busy} onClick={() => void signOutCurrentUser()}>
               {m.signOut}
             </Button>
           </>
@@ -512,7 +510,7 @@ export function HomeAuth({ locale }: { locale: Locale }) {
                       variant="outline"
                       className="w-full gap-2 rounded-xl border-border"
                       disabled={busy || oauthProviderBusy !== null}
-                      onClick={() => void handleOAuthSignIn("github")}
+                      onClick={() => void startOAuthSignIn("github")}
                     >
                       {oauthProviderBusy === "github" ? (
                         <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -526,7 +524,7 @@ export function HomeAuth({ locale }: { locale: Locale }) {
                       variant="outline"
                       className="w-full gap-2 rounded-xl border-border"
                       disabled={busy || oauthProviderBusy !== null}
-                      onClick={() => void handleOAuthSignIn("google")}
+                      onClick={() => void startOAuthSignIn("google")}
                     >
                       {oauthProviderBusy === "google" ? (
                         <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -543,7 +541,7 @@ export function HomeAuth({ locale }: { locale: Locale }) {
                   </div>
                 </>
               ) : null}
-              <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
+              <form onSubmit={(e) => void submitAuthForm(e)} className="space-y-4">
                 {error ? (
                   <Alert variant="destructive">
                     <AlertTitle>{m.errorTitle}</AlertTitle>

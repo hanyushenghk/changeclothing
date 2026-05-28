@@ -25,9 +25,9 @@ export async function POST(req: Request) {
   }
 
   try {
-    const data = await sendWelcomeEmail(email, name);
-    console.info("[welcome-email] sent", { to: email, id: data?.id ?? null });
-    return NextResponse.json({ ok: true, id: data?.id ?? null });
+    const emailResult = await sendWelcomeEmail(email, name);
+    console.info("[welcome-email] sent", { to: email, id: emailResult?.id ?? null });
+    return NextResponse.json({ ok: true, id: emailResult?.id ?? null });
   } catch (error) {
     const message = error instanceof Error ? error.message : "发送欢迎邮件失败。";
     console.error("[welcome-email] send failed", { email, name, message });

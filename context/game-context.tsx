@@ -11,35 +11,12 @@ import React, {
 } from "react";
 
 import { categoryLabel } from "@/lib/category-labels";
+import type { DetectionSource, GameContextValue, TryOnResult } from "@/context/game-context-types";
+import { detectGarmentFile, generateTryOnPreview } from "@/context/try-on-api-client";
 import type { Locale } from "@/lib/i18n/config";
 import { getUi } from "@/lib/i18n/ui";
 import { appendHistory } from "@/lib/history-storage";
-import type { GarmentCategory, TryOnMode, TryOnPhase } from "@/lib/types";
-
-type TryOnResult = {
-  dataUrl: string;
-  mode: TryOnMode;
-};
-
-type DetectionSource = "gemini" | "deterministic";
-
-type GameContextValue = {
-  personPreviewUrl: string | null;
-  garmentPreviewUrl: string | null;
-  personFile: File | null;
-  garmentFile: File | null;
-  category: GarmentCategory | null;
-  categoryDisplay: string | null;
-  detectionSource: DetectionSource | null;
-  phase: TryOnPhase;
-  result: TryOnResult | null;
-  error: string | null;
-  setPersonFile: (file: File | null) => void;
-  setGarmentFile: (file: File | null) => void;
-  generate: () => Promise<void>;
-  clearResult: () => void;
-  resetSession: () => void;
-};
+import type { GarmentCategory, TryOnPhase } from "@/lib/types";
 
 const GameContext = createContext<GameContextValue | null>(null);
 
@@ -141,73 +118,46 @@ export function GameProvider({
       setGarmentFileState(file);
       setGarmentPreviewUrl(url);
       setPhase("detecting");
+
+      const token = garmentVersionRef.current + 1;
+
+      garmentVersionRef.current = token;
+
+      const detectCategory = async () => {
+        setError(null);
+
+        try {
+          const detection = await detectGarmentFile(file, locale);
+
+          if (garmentVersionRef.current !== token) {
+            return;
+          }
+
+          setCategory(detection.category);
+          setDetectionSource(detection.source);
+          setPhase(
+            syncReadyState({
+              person: personFileRef.current,
+              garment: file,
+              cat: detection.category,
+            }),
+          );
+        } catch (err) {
+          if (garmentVersionRef.current !== token) {
+            return;
+          }
+
+          const message = err instanceof Error ? err.message : "Detection failed";
+
+          setError(message);
+          setPhase("error");
+        }
+      };
+
+      void detectCategory();
     },
-    [applyReadyOrIdle, personFile],
+    [applyReadyOrIdle, personFile, locale],
   );
-
-  useEffect(() => {
-    if (!garmentFile) {
-      return;
-    }
-
-    const token = garmentVersionRef.current + 1;
-
-    garmentVersionRef.current = token;
-
-    const run = async () => {
-      setError(null);
-
-      const body = new FormData();
-
-      body.append("garment", garmentFile);
-      body.append("locale", locale);
-
-      try {
-        const res = await fetch("/api/detect-category", {
-          method: "POST",
-          body,
-        });
-        const json = (await res.json()) as {
-          category?: GarmentCategory;
-          source?: DetectionSource;
-          error?: string;
-        };
-
-        if (garmentVersionRef.current !== token) {
-          return;
-        }
-
-        if (!res.ok) {
-          throw new Error(json.error ?? "Failed to classify garment.");
-        }
-
-        if (!json.category) {
-          throw new Error("Missing category from server.");
-        }
-
-        setCategory(json.category);
-        setDetectionSource(json.source ?? "deterministic");
-        setPhase(
-          syncReadyState({
-            person: personFileRef.current,
-            garment: garmentFile,
-            cat: json.category,
-          }),
-        );
-      } catch (err) {
-        if (garmentVersionRef.current !== token) {
-          return;
-        }
-
-        const message = err instanceof Error ? err.message : "Detection failed";
-
-        setError(message);
-        setPhase("error");
-      }
-    };
-
-    void run();
-  }, [garmentFile, locale]);
 
   const generate = useCallback(async () => {
     if (!personFile || !garmentFile || !category) {
@@ -219,36 +169,10 @@ export function GameProvider({
     setPhase("generating");
     setError(null);
 
-    const body = new FormData();
-
-    body.append("person", personFile);
-    body.append("garment", garmentFile);
-    body.append("category", category);
-
     try {
-      const res = await fetch("/api/try-on", {
-        method: "POST",
-        body,
-      });
-      const json = (await res.json()) as {
-        imageBase64?: string;
-        mimeType?: string;
-        mode?: "doubao" | "placeholder";
-        error?: string;
-      };
+      const { dataUrl } = await generateTryOnPreview({ personFile, garmentFile, category });
 
-      if (!res.ok) {
-        throw new Error(json.error ?? "Try-on failed.");
-      }
-
-      if (!json.imageBase64 || !json.mimeType) {
-        throw new Error("Malformed try-on response.");
-      }
-
-      const mode: TryOnMode = json.mode === "doubao" ? "live" : "placeholder";
-      const dataUrl = `data:${json.mimeType};base64,${json.imageBase64}`;
-
-      setResult({ dataUrl, mode });
+      setResult({ dataUrl, mode: "live" });
       setPhase("success");
       appendHistory({
         category,
@@ -317,7 +241,6 @@ export function GameProvider({
       generate,
       clearResult,
       resetSession,
-      locale,
     ],
   );
 

@@ -52,9 +52,8 @@ export default function ResetPasswordPage() {
         }
       }
 
-      const { data } = await supabase.auth.getSession();
       if (mounted) {
-        setReady(Boolean(data.session));
+        setReady(Boolean(accessToken && refreshToken));
       }
     };
 
@@ -65,7 +64,7 @@ export default function ResetPasswordPage() {
     };
   }, [supabase]);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const updatePassword = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     setInfo(null);
@@ -120,7 +119,7 @@ export default function ResetPasswordPage() {
                 <AlertDescription>{info}</AlertDescription>
               </Alert>
             ) : null}
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={updatePassword} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="new-password">{ui.newPassword}</Label>
                 <Input

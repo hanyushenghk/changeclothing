@@ -15,13 +15,13 @@ function extractDoubaoOutputUrl(payload: unknown): string | null {
   }
 
   const p = payload as Record<string, unknown>;
-  const data = p.data;
+  const responseItems = p.data;
 
-  if (!Array.isArray(data) || data.length === 0) {
+  if (!Array.isArray(responseItems) || responseItems.length === 0) {
     return null;
   }
 
-  const first = data[0];
+  const first = responseItems[0];
   if (!first || typeof first !== "object") {
     return null;
   }

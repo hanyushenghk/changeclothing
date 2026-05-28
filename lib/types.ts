@@ -8,4 +8,4 @@ export type TryOnPhase =
   | "success"
   | "error";
 
-export type TryOnMode = "live" | "placeholder";
+export type TryOnMode = "live";

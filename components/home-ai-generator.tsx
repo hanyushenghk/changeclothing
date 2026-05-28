@@ -25,7 +25,7 @@ export function HomeAIGenerator() {
   const [error, setError] = useState<string | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
 
-  const handleSubmit = async (e: FormEvent) => {
+  const submitPromptGeneration = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
 
@@ -77,7 +77,7 @@ export function HomeAIGenerator() {
         <CardDescription>输入提示词后，后端会生成图片并保存到 R2，再返回永久链接。</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={submitPromptGeneration} className="space-y-3">
           <div className="space-y-2">
             <Label htmlFor="home-ai-prompt">Prompt</Label>
             <Input
