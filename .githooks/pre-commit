@@ -1,0 +1,10 @@
+#!/bin/sh
+set -eu
+
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "pnpm is required to run pre-commit tests." >&2
+  exit 1
+fi
+
+echo "Running tests before commit..."
+pnpm test --runInBand
