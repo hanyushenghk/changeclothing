@@ -39,6 +39,10 @@ describe("/api/auth/send-welcome-email", () => {
     const ok = await welcomeEmailPost(jsonRequest({ email: "A@EXAMPLE.COM", name: " Ada " }));
     expect(await readJson(ok)).toEqual({ ok: true, id: "email-1" });
 
+    jest.mocked(sendWelcomeEmail).mockResolvedValueOnce(null as never);
+    const noId = await welcomeEmailPost(jsonRequest({ email: "a@example.com", name: "Ada" }));
+    expect(await readJson(noId)).toEqual({ ok: true, id: null });
+
     jest.mocked(sendWelcomeEmail).mockRejectedValueOnce(new Error("Resend failed"));
     const fail = await welcomeEmailPost(jsonRequest({ email: "a@example.com", name: "Ada" }));
     expect(fail.status).toBe(500);

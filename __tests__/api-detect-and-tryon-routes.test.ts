@@ -63,6 +63,13 @@ describe("/api/detect-category", () => {
     const response = await detectCategoryPost(formRequest(valid));
     expect(response.status).toBe(500);
     expect(await readJson(response)).toEqual({ error: "Gemini down" });
+
+    jest.mocked(detectGarmentCategory).mockRejectedValueOnce("unknown failure" as never);
+    const nonError = new FormData();
+    nonError.set("garment", new File(["x"], "x.png", { type: "image/png" }));
+    const nonErrorResponse = await detectCategoryPost(formRequest(nonError));
+    expect(nonErrorResponse.status).toBe(500);
+    expect(await readJson(nonErrorResponse)).toEqual({ error: "Detection failed" });
   });
 });
 describe("/api/try-on", () => {
@@ -116,5 +123,14 @@ describe("/api/try-on", () => {
     const response = await tryOnPost(formRequest(valid));
     expect(response.status).toBe(500);
     expect(await readJson(response)).toEqual({ error: "Doubao failed" });
+
+    jest.mocked(generateTryOnImage).mockRejectedValueOnce("unknown failure" as never);
+    const nonError = new FormData();
+    nonError.set("person", new File(["p"], "p.png", { type: "image/png" }));
+    nonError.set("garment", new File(["g"], "g.png", { type: "image/png" }));
+    nonError.set("category", "dresses");
+    const nonErrorResponse = await tryOnPost(formRequest(nonError));
+    expect(nonErrorResponse.status).toBe(500);
+    expect(await readJson(nonErrorResponse)).toEqual({ error: "Try-on failed" });
   });
 });
